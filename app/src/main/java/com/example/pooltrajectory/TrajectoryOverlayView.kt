@@ -18,19 +18,20 @@ class TrajectoryOverlayView(context: Context) : View(context) {
         this.color = color
     }
 
-    private val aim = stroke(Color.rgb(70,255,110),4f)
-    private val obj = stroke(Color.rgb(255,210,55),5f)
-    private val after = stroke(Color.rgb(70,210,255),4f).apply {
-        pathEffect = DashPathEffect(floatArrayOf(16f*density,10f*density),0f)
+    private val aim = stroke(Color.rgb(70,255,110),2.6f)
+    private val obj = stroke(Color.rgb(255,210,55),3.2f)
+    private val after = stroke(Color.rgb(70,210,255),2.4f).apply {
+        pathEffect = DashPathEffect(floatArrayOf(13f*density,9f*density),0f)
     }
-    private val bounce = stroke(Color.rgb(255,170,60),4f).apply {
-        pathEffect = DashPathEffect(floatArrayOf(14f*density,10f*density),0f)
+    private val bounce = stroke(Color.rgb(255,170,60),2.4f).apply {
+        pathEffect = DashPathEffect(floatArrayOf(12f*density,9f*density),0f)
     }
-    private val ghost = stroke(Color.WHITE,2.5f)
-    private val debug = stroke(Color.argb(160,255,255,255),1.25f)
+    private val ghost = stroke(Color.argb(210,255,255,255),1.8f)
+    private val debug = stroke(Color.argb(150,255,255,255),1.0f)
+    private val cueDebug = stroke(Color.argb(220,80,220,255),1.6f)
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = 13f * density
+        textSize = 12f * density
         setShadowLayer(4f*density,1f,1f,Color.BLACK)
     }
 
@@ -45,7 +46,6 @@ class TrajectoryOverlayView(context: Context) : View(context) {
 
         val sx = width.toDouble() / r.frameWidth
         val sy = height.toDouble() / r.frameHeight
-
         fun x(v: Double) = (v * sx).toFloat()
         fun y(v: Double) = (v * sy).toFloat()
 
@@ -56,7 +56,7 @@ class TrajectoryOverlayView(context: Context) : View(context) {
                 SegmentKind.CUE_AFTER -> after
                 SegmentKind.BOUNCE -> bounce
             }
-            canvas.drawLine(x(s.start.x),y(s.start.y),x(s.end.x),y(s.end.y),p)
+            canvas.drawLine(x(s.start.x), y(s.start.y), x(s.end.x), y(s.end.y), p)
         }
 
         if (r.ghostCueCenter != null && r.cueBall != null) {
@@ -68,21 +68,26 @@ class TrajectoryOverlayView(context: Context) : View(context) {
             )
         }
 
-        val prefs = context.getSharedPreferences(MainActivity.PREFS,Context.MODE_PRIVATE)
-        if (prefs.getBoolean(MainActivity.KEY_DEBUG,false)) {
+        val prefs = context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
+        val debugEnabled = prefs.getBoolean(MainActivity.KEY_DEBUG, false)
+        if (debugEnabled) {
             r.balls.forEach { b ->
                 canvas.drawCircle(
                     x(b.center.x),
                     y(b.center.y),
                     (b.radius * ((sx + sy) / 2)).toFloat(),
-                    debug
+                    if (b.isCue) cueDebug else debug
                 )
             }
             r.playRect?.let {
-                canvas.drawRect(x(it.left),y(it.top),x(it.right),y(it.bottom),debug)
+                canvas.drawRect(x(it.left), y(it.top), x(it.right), y(it.bottom), debug)
             }
+            canvas.drawText(
+                "DEBUG • ${r.status} • ${r.confidence}% • balls=${r.balls.size}",
+                12f * density,
+                24f * density,
+                text
+            )
         }
-
-        canvas.drawText("OFFLINE • ${r.status} • ${r.confidence}%",12f*density,24f*density,text)
     }
 }
