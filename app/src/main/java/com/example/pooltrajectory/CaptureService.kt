@@ -55,11 +55,17 @@ class CaptureService : Service() {
 
     private fun startProjection(code:Int, data:Intent) {
         val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        val p = mgr.getMediaProjection(code,data); projection = p
-        thread = HandlerThread("pool-capture").also { it.start() }; handler = Handler(thread!!.looper)
+        val p = mgr.getMediaProjection(code,data) ?: run {
+            stopSelf()
+            return
+        }
+        projection = p
+        thread = HandlerThread("pool-capture").also { it.start() }
+        handler = Handler(thread!!.looper)
         p.registerCallback(object: MediaProjection.Callback(){ override fun onStop(){ stopSelf() } }, handler)
         val dm = resources.displayMetrics
-        val w = dm.widthPixels; val h = dm.heightPixels
+        val w = dm.widthPixels
+        val h = dm.heightPixels
         reader = ImageReader.newInstance(w,h,PixelFormat.RGBA_8888,2)
         reader!!.setOnImageAvailableListener({ r -> onImage(r) }, handler)
         display = p.createVirtualDisplay("PoolTrajectoryCapture",w,h,dm.densityDpi,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,reader!!.surface,null,handler)
@@ -82,12 +88,16 @@ class CaptureService : Service() {
     }
 
     private fun imageToBitmap(image: Image): Bitmap {
-        val plane = image.planes[0]; val buffer = plane.buffer; buffer.rewind()
+        val plane = image.planes[0]
+        val buffer = plane.buffer
+        buffer.rewind()
         val paddedWidth = image.width + (plane.rowStride-plane.pixelStride*image.width)/plane.pixelStride
         val padded = Bitmap.createBitmap(paddedWidth,image.height,Bitmap.Config.ARGB_8888)
         padded.copyPixelsFromBuffer(buffer)
         if (paddedWidth == image.width) return padded
-        val out = Bitmap.createBitmap(padded,0,0,image.width,image.height); padded.recycle(); return out
+        val out = Bitmap.createBitmap(padded,0,0,image.width,image.height)
+        padded.recycle()
+        return out
     }
 
     private fun notification(): Notification {
@@ -97,13 +107,22 @@ class CaptureService : Service() {
     }
 
     override fun onDestroy() {
-        overlay?.hide(); reader?.setOnImageAvailableListener(null,null); display?.release(); reader?.close(); runCatching { projection?.stop() }; thread?.quitSafely()
+        overlay?.hide()
+        reader?.setOnImageAvailableListener(null,null)
+        display?.release()
+        reader?.close()
+        runCatching { projection?.stop() }
+        thread?.quitSafely()
         super.onDestroy()
     }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        const val EXTRA_RESULT_CODE="resultCode"; const val EXTRA_PROJECTION_DATA="projectionData"; const val ACTION_STOP="com.example.pooltrajectory.STOP"
-        private const val CHANNEL="screen_capture"; private const val ID=73
+        const val EXTRA_RESULT_CODE="resultCode"
+        const val EXTRA_PROJECTION_DATA="projectionData"
+        const val ACTION_STOP="com.example.pooltrajectory.STOP"
+        private const val CHANNEL="screen_capture"
+        private const val ID=73
     }
 }
