@@ -33,14 +33,14 @@ class CaptureService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
     private var overlay: OverlayController? = null
-    private var analyzer: FrameAnalyzer? = null
+    private var analyzer: GuideEndpointAnalyzer? = null
     private var last = 0L
 
     override fun onCreate() {
         super.onCreate()
         getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(CHANNEL,"Захват экрана",NotificationManager.IMPORTANCE_LOW))
         OpenCVLoader.initLocal()
-        analyzer = FrameAnalyzer(this)
+        analyzer = GuideEndpointAnalyzer(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
