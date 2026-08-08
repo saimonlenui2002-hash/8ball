@@ -42,12 +42,12 @@ class MainActivity : Activity() {
         }
         scroll.addView(root)
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 2.0"
+            text = "Pool Trajectory Offline 2.1"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "Режим штатной направляющей для оффлайн-тренировки: приложение считывает белую линию прицеливания 8 Ball Pool и продолжает расчёт траектории дальше."
+            text = "Режим штатной направляющей: сначала ищется длинная белая линия 8 Ball Pool, затем настоящий биток определяется по её концу. Поверх штатной линии рисуется только дальнейшая траектория после столкновения."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -73,7 +73,7 @@ class MainActivity : Activity() {
         }
         fun updateSens() {
             val value = sensitivity.progress+12
-            sensValue.text = "$value — обычно оставь 22; менять нужно только если не находятся шары"
+            sensValue.text = "$value — оставь 22 для первого теста"
         }
         updateSens()
         sensitivity.setOnSeekBarChangeListener(simpleSeek { p ->
@@ -100,7 +100,7 @@ class MainActivity : Activity() {
         val bounceValue = TextView(this); root.addView(bounceValue)
         val bounces = SeekBar(this).apply {
             max = 2
-            progress = prefs.getInt(KEY_BOUNCES,1).coerceIn(0,2)
+            progress = prefs.getInt(KEY_BOUNCES,0).coerceIn(0,2)
         }
         fun updateBounces() { bounceValue.text = "${bounces.progress} отскок(а)" }
         updateBounces()
@@ -117,7 +117,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(12) })
 
         root.addView(TextView(this).apply {
-            text = "Важно для Android 16: в системном окне захвата выбери «одно приложение» и затем 8 Ball Pool. Не выбирай весь экран. В игре сначала наведи штатную белую линию, после этого помощник сможет её продолжить."
+            text = "Android 16: при захвате выбери «одно приложение» → 8 Ball Pool. В обычном режиме диагностику держи выключенной."
             textSize = 14f
             setPadding(0,dp(20),0,0)
         })
@@ -129,10 +129,7 @@ class MainActivity : Activity() {
             Toast.makeText(this,"Разрешение уже выдано",Toast.LENGTH_SHORT).show()
             return
         }
-        startActivityForResult(
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
-            RC_OVERLAY
-        )
+        startActivityForResult(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")), RC_OVERLAY)
     }
 
     private fun requestCapture() {
@@ -153,7 +150,7 @@ class MainActivity : Activity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA,data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this,"Режим штатной линии запущен. Наводи кий в оффлайн-матче.",Toast.LENGTH_LONG).show()
+            Toast.makeText(this,"Режим 2.1 запущен. Наведи штатную белую линию на шар.",Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
@@ -166,7 +163,7 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         status.text = if (Settings.canDrawOverlays(this)) {
-            "✓ Overlay разрешён. Версия 2.0.0 • источник направления: штатная белая линия 8 Ball Pool."
+            "✓ Overlay разрешён. Версия 2.1.0 • биток определяется по концу штатной линии."
         } else {
             "Нужно разрешение «поверх других приложений»."
         }
