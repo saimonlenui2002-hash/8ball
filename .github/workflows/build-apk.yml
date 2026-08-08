@@ -30,6 +30,13 @@ jobs:
       - name: Install Android SDK 36
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
+      - name: Install stable debug signing key
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.android"
+          base64 -d ci/debug.keystore.b64 > "$HOME/.android/debug.keystore"
+          chmod 600 "$HOME/.android/debug.keystore"
+
       - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
         with:
