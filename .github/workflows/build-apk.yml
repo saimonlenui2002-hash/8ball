@@ -8,6 +8,10 @@ on:
       - ci-build-status.txt
   workflow_dispatch:
 
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
