@@ -3,7 +3,12 @@ name: Build Android APK
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - ci-build-error.txt
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -30,9 +35,40 @@ jobs:
           gradle-version: '8.11.1'
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        id: build
+        shell: bash
+        run: |
+          set +e
+          gradle :app:assembleDebug --stacktrace 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Save failure report to repository
+        if: steps.build.outputs.exit_code != '0'
+        shell: bash
+        run: |
+          {
+            echo "Build failed at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo
+            echo "==== Key errors ===="
+            grep -nEi "(^|[[:space:]])(error:|e: |FAILURE:|What went wrong:|Could not|Execution failed|Unresolved reference|Compilation error|AAPT:|Manifest merger failed)" build.log | tail -n 160 || true
+            echo
+            echo "==== Last 350 log lines ===="
+            tail -n 350 build.log
+          } > ci-build-error.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-build-error.txt
+          git commit -m "Save Android build error [skip ci]" || true
+          git push
+
+      - name: Fail if build failed
+        if: steps.build.outputs.exit_code != '0'
+        run: exit 1
 
       - name: Upload APK
+        if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
           name: PoolTrajectoryOffline-debug-apk
