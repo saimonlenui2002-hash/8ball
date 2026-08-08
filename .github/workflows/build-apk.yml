@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths-ignore:
       - ci-build-error.txt
+      - ci-build-status.txt
   workflow_dispatch:
 
 permissions:
@@ -50,6 +51,7 @@ jobs:
         run: |
           {
             echo "Build failed at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "Commit: $GITHUB_SHA"
             echo
             echo "==== Key errors ===="
             grep -nEi "(^|[[:space:]])(error:|e: |FAILURE:|What went wrong:|Could not|Execution failed|Unresolved reference|Compilation error|AAPT:|Manifest merger failed)" build.log | tail -n 160 || true
@@ -57,15 +59,27 @@ jobs:
             echo "==== Last 350 log lines ===="
             tail -n 350 build.log
           } > ci-build-error.txt
+          printf 'FAILED\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ci-build-error.txt
-          git commit -m "Save Android build error [skip ci]" || true
+          git add ci-build-error.txt ci-build-status.txt
+          git commit -m "Save Android build failure [skip ci]" || true
           git push
 
       - name: Fail if build failed
         if: steps.build.outputs.exit_code != '0'
         run: exit 1
+
+      - name: Save success status
+        if: steps.build.outputs.exit_code == '0'
+        shell: bash
+        run: |
+          printf 'SUCCESS\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-build-status.txt
+          git commit -m "Record successful Android build [skip ci]" || true
+          git push
 
       - name: Upload APK
         if: steps.build.outputs.exit_code == '0'
