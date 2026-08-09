@@ -33,7 +33,7 @@ class CaptureService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
     private var overlay: OverlayController? = null
-    private var analyzer: NativeGuideForkAnalyzerV33? = null
+    private var analyzer: NativeGuideForkAnalyzerV34? = null
     private var last = 0L
     private var captureWidth = 0
     private var captureHeight = 0
@@ -45,7 +45,7 @@ class CaptureService : Service() {
             NotificationChannel(CHANNEL, "Захват экрана", NotificationManager.IMPORTANCE_LOW)
         )
         OpenCVLoader.initLocal()
-        analyzer = NativeGuideForkAnalyzerV33(this)
+        analyzer = NativeGuideForkAnalyzerV34(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -183,7 +183,7 @@ class CaptureService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Pool Trajectory Offline")
-            .setContentText("Продолжение короткого штатного отрезка 3.3 активно")
+            .setContentText("Локальное чтение короткой штатной ветки 3.4 активно")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stop)
