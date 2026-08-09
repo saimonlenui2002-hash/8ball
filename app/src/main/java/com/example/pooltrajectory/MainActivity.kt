@@ -26,11 +26,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
-        if (!OpenCVLoader.initLocal()) {
-            status.text = "OpenCV не загрузился."
-        } else {
-            refreshStatus()
-        }
+        if (!OpenCVLoader.initLocal()) status.text = "OpenCV не загрузился." else refreshStatus()
     }
 
     override fun onResume() {
@@ -47,12 +43,12 @@ class MainActivity : Activity() {
         scroll.addView(root)
 
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 3.0"
+            text = "Pool Trajectory Offline 3.1"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "Новый режим без распознавания всех шаров. Приложение ищет штатную белую направляющую 8 Ball Pool, её развилку в точке контакта и продлевает уже готовые короткие ветки игры до борта."
+            text = "Исправлен выбор штатной развилки: прямое продолжение линии теперь разрешено, направление берётся из самого белого отрезка, а на загрузочных/меню-экранах линии не рисуются без найденного сукна."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -60,148 +56,119 @@ class MainActivity : Activity() {
         status = TextView(this).apply {
             textSize = 15f
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            setBackgroundColor(Color.rgb(238, 238, 238))
+            setBackgroundColor(Color.rgb(238,238,238))
         }
-        root.addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
+        root.addView(status, LinearLayout.LayoutParams(-1,-2).apply { bottomMargin = dp(16) })
 
         root.addView(button("1. Разрешить показ поверх приложений") { requestOverlayPermission() })
         root.addView(button("2. Запустить продолжение штатной линии") { requestCapture() })
         root.addView(button("Остановить помощник") {
             stopService(Intent(this, CaptureService::class.java))
-            Toast.makeText(this, "Помощник остановлен", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this,"Помощник остановлен",Toast.LENGTH_SHORT).show()
         })
         root.addView(button("Открыть 8 Ball Pool") { openGame() })
 
         root.addView(section("Частота анализа"))
-        val fpsValue = TextView(this)
-        root.addView(fpsValue)
+        val fpsValue = TextView(this); root.addView(fpsValue)
         val fps = SeekBar(this).apply {
             max = 9
-            progress = prefs.getInt(KEY_FPS, 7).coerceIn(3, 12) - 3
+            progress = prefs.getInt(KEY_FPS,7).coerceIn(3,12)-3
         }
-        fun updateFps() { fpsValue.text = "${fps.progress + 3} кадров/с" }
+        fun updateFps() { fpsValue.text = "${fps.progress+3} кадров/с" }
         updateFps()
         fps.setOnSeekBarChangeListener(simpleSeek { p ->
-            prefs.edit().putInt(KEY_FPS, p + 3).apply()
-            updateFps()
+            prefs.edit().putInt(KEY_FPS,p+3).apply(); updateFps()
         })
         root.addView(fps)
 
         root.addView(section("Рикошеты продолженной линии прицельного шара"))
-        val bounceValue = TextView(this)
-        root.addView(bounceValue)
+        val bounceValue = TextView(this); root.addView(bounceValue)
         val bounces = SeekBar(this).apply {
             max = 2
-            progress = prefs.getInt(KEY_BOUNCES, 0).coerceIn(0, 2)
+            progress = prefs.getInt(KEY_BOUNCES,0).coerceIn(0,2)
         }
         fun updateBounces() { bounceValue.text = "${bounces.progress} отскок(а)" }
         updateBounces()
         bounces.setOnSeekBarChangeListener(simpleSeek { p ->
-            prefs.edit().putInt(KEY_BOUNCES, p).apply()
-            updateBounces()
+            prefs.edit().putInt(KEY_BOUNCES,p).apply(); updateBounces()
         })
         root.addView(bounces)
 
         root.addView(CheckBox(this).apply {
-            text = "Диагностика: показать границу стола и найденные белые отрезки"
-            isChecked = prefs.getBoolean(KEY_DEBUG, false)
-            setOnCheckedChangeListener { _, checked ->
-                prefs.edit().putBoolean(KEY_DEBUG, checked).apply()
-            }
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+            text = "Диагностика: показать границу стола, входящую линию и узел развилки"
+            isChecked = prefs.getBoolean(KEY_DEBUG,false)
+            setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean(KEY_DEBUG,checked).apply() }
+        }, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(12) })
 
         root.addView(TextView(this).apply {
-            text = "Запуск: выбери «одно приложение» → 8 Ball Pool. В игре наведи штатную линию на шар так, чтобы появилась маленькая развилка после точки контакта. В обычной игре диагностику держи выключенной."
+            text = "Выбирай «одно приложение» → 8 Ball Pool. Для первого теста FPS 7, рикошеты 0, диагностика выключена. Если линия снова ошибётся — включи диагностику и пришли один скрин: зелёный крест покажет узел, который видит программа."
             textSize = 14f
-            setPadding(0, dp(20), 0, 0)
+            setPadding(0,dp(20),0,0)
         })
         setContentView(scroll)
     }
 
     private fun requestOverlayPermission() {
         if (Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Разрешение уже выдано", Toast.LENGTH_SHORT).show()
-            return
+            Toast.makeText(this,"Разрешение уже выдано",Toast.LENGTH_SHORT).show(); return
         }
-        startActivityForResult(
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
-            RC_OVERLAY
-        )
+        startActivityForResult(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),RC_OVERLAY)
     }
 
     private fun requestCapture() {
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Сначала разреши показ поверх других приложений", Toast.LENGTH_LONG).show()
-            requestOverlayPermission()
-            return
+            Toast.makeText(this,"Сначала разреши показ поверх других приложений",Toast.LENGTH_LONG).show()
+            requestOverlayPermission(); return
         }
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        startActivityForResult(manager.createScreenCaptureIntent(), RC_CAPTURE)
+        startActivityForResult(manager.createScreenCaptureIntent(),RC_CAPTURE)
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == RC_CAPTURE && resultCode == RESULT_OK && data != null) {
-            val serviceIntent = Intent(this, CaptureService::class.java).apply {
-                putExtra(CaptureService.EXTRA_RESULT_CODE, resultCode)
-                putExtra(CaptureService.EXTRA_PROJECTION_DATA, data)
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
+        super.onActivityResult(requestCode,resultCode,data)
+        if (requestCode==RC_CAPTURE && resultCode==RESULT_OK && data!=null) {
+            val serviceIntent=Intent(this,CaptureService::class.java).apply {
+                putExtra(CaptureService.EXTRA_RESULT_CODE,resultCode)
+                putExtra(CaptureService.EXTRA_PROJECTION_DATA,data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this, "Режим 3.0 запущен. Наведи штатную линию на шар.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this,"Режим 3.1 запущен",Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
 
     private fun openGame() {
-        val candidates = listOf("com.miniclip.eightballpoolmult", "com.miniclip.eightballpool")
-        val launch = candidates.firstNotNullOfOrNull { packageManager.getLaunchIntentForPackage(it) }
-        if (launch != null) {
-            startActivity(launch)
-        } else {
-            Toast.makeText(this, "8 Ball Pool не найден. Открой игру вручную.", Toast.LENGTH_LONG).show()
-        }
+        val candidates=listOf("com.miniclip.eightballpoolmult","com.miniclip.eightballpool")
+        val launch=candidates.firstNotNullOfOrNull { packageManager.getLaunchIntentForPackage(it) }
+        if (launch!=null) startActivity(launch) else Toast.makeText(this,"8 Ball Pool не найден",Toast.LENGTH_LONG).show()
     }
 
     private fun refreshStatus() {
-        status.text = if (Settings.canDrawOverlays(this)) {
-            "✓ Overlay разрешён. Версия 3.0.0 • источник траектории: штатная развилка 8 Ball Pool."
-        } else {
-            "Нужно разрешение «поверх других приложений»."
-        }
+        status.text=if(Settings.canDrawOverlays(this)) {
+            "✓ Overlay разрешён. Версия 3.1.0 • связный поиск штатной развилки."
+        } else "Нужно разрешение «поверх других приложений»."
     }
 
-    private fun button(text: String, action: () -> Unit): View = Button(this).apply {
-        this.text = text
-        isAllCaps = false
-        setOnClickListener { action() }
-        gravity = Gravity.CENTER
+    private fun button(text:String,action:()->Unit):View=android.widget.Button(this).apply {
+        this.text=text; isAllCaps=false; setOnClickListener{action()}; gravity=Gravity.CENTER
     }
-
-    private fun section(text: String) = TextView(this).apply {
-        this.text = text
-        textSize = 16f
-        setTextColor(Color.BLACK)
-        setPadding(0, dp(18), 0, dp(4))
+    private fun section(text:String)=TextView(this).apply {
+        this.text=text; textSize=16f; setTextColor(Color.BLACK); setPadding(0,dp(18),0,dp(4))
     }
-
-    private fun simpleSeek(onChanged: (Int) -> Unit) = object : SeekBar.OnSeekBarChangeListener {
-        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-            if (fromUser) onChanged(progress)
-        }
-        override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
-        override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+    private fun simpleSeek(onChanged:(Int)->Unit)=object:SeekBar.OnSeekBarChangeListener{
+        override fun onProgressChanged(seekBar:SeekBar?,progress:Int,fromUser:Boolean){if(fromUser)onChanged(progress)}
+        override fun onStartTrackingTouch(seekBar:SeekBar?)=Unit
+        override fun onStopTrackingTouch(seekBar:SeekBar?)=Unit
     }
-
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
 
     companion object {
-        const val PREFS = "pool_prefs"
-        // Kept for compatibility with older analyzer source files still in the project.
-        const val KEY_SENSITIVITY = "sensitivity"
-        const val KEY_FPS = "fps"
-        const val KEY_BOUNCES = "bounces"
-        const val KEY_DEBUG = "debug"
-        private const val RC_OVERLAY = 100
-        private const val RC_CAPTURE = 101
+        const val PREFS="pool_prefs"
+        const val KEY_SENSITIVITY="sensitivity"
+        const val KEY_FPS="fps"
+        const val KEY_BOUNCES="bounces"
+        const val KEY_DEBUG="debug"
+        private const val RC_OVERLAY=100
+        private const val RC_CAPTURE=101
     }
 }
