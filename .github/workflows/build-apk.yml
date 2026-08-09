@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - ci-build-error.txt
       - ci-build-status.txt
+      - 'ml/**'
   workflow_dispatch:
 
 concurrency:
@@ -90,7 +91,6 @@ jobs:
         run: |
           printf 'SUCCESS\nversion=3.4.0\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+hash@users.noreply.github.com"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ci-build-status.txt
           git commit -m "Record successful Android build [skip ci]" || true
