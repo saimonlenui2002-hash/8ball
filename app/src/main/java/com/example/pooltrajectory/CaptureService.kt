@@ -33,7 +33,7 @@ class CaptureService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
     private var overlay: OverlayController? = null
-    private var analyzer: GuideEndpointAnalyzer? = null
+    private var analyzer: NativeGuideForkAnalyzer? = null
     private var last = 0L
     private var captureWidth = 0
     private var captureHeight = 0
@@ -45,7 +45,7 @@ class CaptureService : Service() {
             NotificationChannel(CHANNEL, "Захват экрана", NotificationManager.IMPORTANCE_LOW)
         )
         OpenCVLoader.initLocal()
-        analyzer = GuideEndpointAnalyzer(this)
+        analyzer = NativeGuideForkAnalyzer(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -105,13 +105,6 @@ class CaptureService : Service() {
         overlay = OverlayController(this).also { it.show() }
     }
 
-    /**
-     * App screen sharing can start while this activity is portrait and then capture a
-     * landscape game. Android reports the selected app's real captured size through
-     * onCapturedContentResize(). Keep the VirtualDisplay and ImageReader in exactly that
-     * size so analyzer coordinates map 1:1 to the landscape overlay instead of being
-     * stretched from a portrait buffer.
-     */
     private fun resizeCapture(width: Int, height: Int) {
         if (width == captureWidth && height == captureHeight) return
         val virtualDisplay = display ?: return
@@ -128,7 +121,7 @@ class CaptureService : Service() {
             oldReader?.close()
             busy.set(false)
             last = 0L
-        } catch (t: Throwable) {
+        } catch (_: Throwable) {
             newReader.setOnImageAvailableListener(null, null)
             newReader.close()
         }
@@ -193,7 +186,7 @@ class CaptureService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Pool Trajectory Offline")
-            .setContentText("Анализ экрана активен")
+            .setContentText("Анализ штатной развилки активен")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stop)
