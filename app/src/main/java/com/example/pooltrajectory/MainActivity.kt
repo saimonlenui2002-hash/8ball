@@ -43,12 +43,12 @@ class MainActivity : Activity() {
         scroll.addView(root)
 
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 3.4"
+            text = "Pool Trajectory Offline 4.0 ML Preview"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "Короткие штатные ветки теперь читаются локально по белым пикселям вокруг кружка контакта. Глобальный Hough используется только для длинной входящей линии, поэтому куски основной линии не должны становиться продолжением."
+            text = "Экспериментальная ML-версия: длинная штатная линия находится классически, а маленькая нейросеть анализирует только область контакта и подтверждает белое кольцо и 1–2 короткие ветки. Угол ветки затем уточняется математически по её пикселям."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -61,7 +61,7 @@ class MainActivity : Activity() {
         root.addView(status, LinearLayout.LayoutParams(-1,-2).apply { bottomMargin = dp(16) })
 
         root.addView(button("1. Разрешить показ поверх приложений") { requestOverlayPermission() })
-        root.addView(button("2. Запустить локальное продолжение ветки") { requestCapture() })
+        root.addView(button("2. Запустить ML-продолжение") { requestCapture() })
         root.addView(button("Остановить помощник") {
             stopService(Intent(this, CaptureService::class.java))
             Toast.makeText(this,"Помощник остановлен",Toast.LENGTH_SHORT).show()
@@ -95,13 +95,13 @@ class MainActivity : Activity() {
         root.addView(bounces)
 
         root.addView(CheckBox(this).apply {
-            text = "Диагностика: зелёным показать найденную локальную короткую ветку и входящую линию"
+            text = "Диагностика: зелёным показать входящую линию, ML-ветку и центр контакта"
             isChecked = prefs.getBoolean(KEY_DEBUG,false)
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean(KEY_DEBUG,checked).apply() }
         }, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(12) })
 
         root.addView(TextView(this).apply {
-            text = "Первый тест: FPS 7, рикошеты 0, диагностика выключена. Если угол снова промахнётся — включи диагностику: короткий зелёный участок должен лежать точно поверх штатной белой ветки игры."
+            text = "Первый тест: FPS 7, рикошеты 0. Сначала попробуй без диагностики. Если линия не появляется или угол неверный — включи диагностику и пришли 2–3 скрина со статусом ML вверху."
             textSize = 14f
             setPadding(0,dp(20),0,0)
         })
@@ -132,7 +132,7 @@ class MainActivity : Activity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA,data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this,"Режим 3.4 запущен",Toast.LENGTH_LONG).show()
+            Toast.makeText(this,"ML Preview 4.0 запущен",Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
@@ -145,7 +145,7 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         status.text=if(Settings.canDrawOverlays(this)) {
-            "✓ Overlay разрешён. Версия 3.4.0 • локальное чтение короткой штатной ветки."
+            "✓ Overlay разрешён. Версия 4.0.0-ml1 • локальная ONNX-модель + математическое продолжение."
         } else "Нужно разрешение «поверх других приложений»."
     }
 
