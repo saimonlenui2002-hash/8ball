@@ -42,12 +42,12 @@ class MainActivity : Activity() {
         }
         scroll.addView(root)
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 2.1"
+            text = "Pool Trajectory Offline 2.2"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "Режим штатной направляющей: сначала ищется длинная белая линия 8 Ball Pool, затем настоящий биток определяется по её концу. Поверх штатной линии рисуется только дальнейшая траектория после столкновения."
+            text = "Исправлена геометрия захвата: размер MediaProjection теперь автоматически подстраивается под выбранное приложение и его альбомную ориентацию. После этого штатная линия и overlay должны использовать одну систему координат."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -117,7 +117,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(12) })
 
         root.addView(TextView(this).apply {
-            text = "Android 16: при захвате выбери «одно приложение» → 8 Ball Pool. В обычном режиме диагностику держи выключенной."
+            text = "При захвате выбери «одно приложение» → 8 Ball Pool. Для проверки версии 2.2 сначала оставь чувствительность 22, FPS 7, рикошеты 0 и диагностику выключенной."
             textSize = 14f
             setPadding(0,dp(20),0,0)
         })
@@ -150,7 +150,7 @@ class MainActivity : Activity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA,data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this,"Режим 2.1 запущен. Наведи штатную белую линию на шар.",Toast.LENGTH_LONG).show()
+            Toast.makeText(this,"Режим 2.2 запущен. Наведи штатную белую линию на шар.",Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
@@ -163,7 +163,7 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         status.text = if (Settings.canDrawOverlays(this)) {
-            "✓ Overlay разрешён. Версия 2.1.0 • биток определяется по концу штатной линии."
+            "✓ Overlay разрешён. Версия 2.2.0 • исправление размеров/ориентации захвата включено."
         } else {
             "Нужно разрешение «поверх других приложений»."
         }
