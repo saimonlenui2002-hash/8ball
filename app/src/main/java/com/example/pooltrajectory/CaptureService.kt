@@ -33,7 +33,7 @@ class CaptureService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
     private var overlay: OverlayController? = null
-    private var analyzer: NativeGuideForkAnalyzer? = null
+    private var analyzer: NativeGuideForkAnalyzerV31? = null
     private var last = 0L
     private var captureWidth = 0
     private var captureHeight = 0
@@ -45,7 +45,7 @@ class CaptureService : Service() {
             NotificationChannel(CHANNEL, "Захват экрана", NotificationManager.IMPORTANCE_LOW)
         )
         OpenCVLoader.initLocal()
-        analyzer = NativeGuideForkAnalyzer(this)
+        analyzer = NativeGuideForkAnalyzerV31(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -108,7 +108,6 @@ class CaptureService : Service() {
     private fun resizeCapture(width: Int, height: Int) {
         if (width == captureWidth && height == captureHeight) return
         val virtualDisplay = display ?: return
-
         val oldReader = reader
         val newReader = createReader(width, height)
         try {
@@ -172,14 +171,12 @@ class CaptureService : Service() {
 
     private fun notification(): Notification {
         val stop = PendingIntent.getService(
-            this,
-            2,
+            this, 2,
             Intent(this, CaptureService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val open = PendingIntent.getActivity(
-            this,
-            1,
+            this, 1,
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
