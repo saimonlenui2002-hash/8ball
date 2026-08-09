@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.pooltrajectory"
         minSdk = 29
         targetSdk = 36
-        versionCode = 10
-        versionName = "3.4.0"
+        versionCode = 11
+        versionName = "4.0.0-ml1"
     }
 
     buildTypes {
