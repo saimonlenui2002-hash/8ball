@@ -43,12 +43,12 @@ class MainActivity : Activity() {
         scroll.addView(root)
 
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 3.2"
+            text = "Pool Trajectory Offline 3.3"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "Версия под твой широкоформатный экран: область стола больше не ищется случайным контуром. Биток отсекается по сплошной белой области, а продолжение начинается точно из штатного кружка контакта."
+            text = "Продолжение теперь строится прямо из внешнего конца короткого штатного отрезка 8 Ball Pool и использует угол самого этого отрезка. Центр кружка больше не используется как старт нашей линии."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -61,7 +61,7 @@ class MainActivity : Activity() {
         root.addView(status, LinearLayout.LayoutParams(-1,-2).apply { bottomMargin = dp(16) })
 
         root.addView(button("1. Разрешить показ поверх приложений") { requestOverlayPermission() })
-        root.addView(button("2. Запустить продолжение штатной линии") { requestCapture() })
+        root.addView(button("2. Запустить продолжение короткого отрезка") { requestCapture() })
         root.addView(button("Остановить помощник") {
             stopService(Intent(this, CaptureService::class.java))
             Toast.makeText(this,"Помощник остановлен",Toast.LENGTH_SHORT).show()
@@ -95,13 +95,13 @@ class MainActivity : Activity() {
         root.addView(bounces)
 
         root.addView(CheckBox(this).apply {
-            text = "Диагностика: показать область стола, входящую линию и найденный узел"
+            text = "Диагностика: зелёным показать короткие штатные отрезки, которые реально продолжаются"
             isChecked = prefs.getBoolean(KEY_DEBUG,false)
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean(KEY_DEBUG,checked).apply() }
         }, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(12) })
 
         root.addView(TextView(this).apply {
-            text = "Выбирай «одно приложение» → 8 Ball Pool. Первый тест: FPS 7, рикошеты 0, диагностика выключена. Если будет промах — включи диагностику и пришли один скрин того же положения кия."
+            text = "Первый тест: FPS 7, рикошеты 0, диагностика выключена. Если продолжение ошибётся — включи диагностику: зелёный короткий сегмент должен точно лежать поверх штатной белой ветки игры."
             textSize = 14f
             setPadding(0,dp(20),0,0)
         })
@@ -132,7 +132,7 @@ class MainActivity : Activity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA,data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this,"Режим 3.2 запущен",Toast.LENGTH_LONG).show()
+            Toast.makeText(this,"Режим 3.3 запущен",Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
@@ -145,11 +145,11 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         status.text=if(Settings.canDrawOverlays(this)) {
-            "✓ Overlay разрешён. Версия 3.2.0 • фильтр битка + стабильная область стола."
+            "✓ Overlay разрешён. Версия 3.3.0 • продолжение из конца короткого штатного отрезка."
         } else "Нужно разрешение «поверх других приложений»."
     }
 
-    private fun button(text:String,action:()->Unit):View=android.widget.Button(this).apply {
+    private fun button(text:String,action:()->Unit):View=Button(this).apply {
         this.text=text; isAllCaps=false; setOnClickListener{action()}; gravity=Gravity.CENTER
     }
     private fun section(text:String)=TextView(this).apply {
