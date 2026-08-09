@@ -1,4 +1,4 @@
 SUCCESS
-version=2.2.0
-commit=e58155d87cce6fda37778d72f20896e989a3bd82
-time=2026-08-09T03:46:23Z
+version=3.0.0
+commit=c7a98356e7d10bbd780e1b606dae0f3599e98279
+time=2026-08-09T03:59:58Z
