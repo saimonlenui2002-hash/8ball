@@ -27,6 +27,8 @@ def main() -> None:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     dummy = torch.zeros(1, 3, INPUT_H, INPUT_W, dtype=torch.float32)
+    # Use the stable TorchScript exporter so this pipeline works across the
+    # supported PyTorch 2.x range without requiring the newer onnxscript stack.
     torch.onnx.export(
         model,
         dummy,
@@ -36,6 +38,7 @@ def main() -> None:
         opset_version=17,
         do_constant_folding=True,
         dynamic_axes=None,
+        dynamo=False,
     )
 
     model_onnx = onnx.load(str(args.output))
