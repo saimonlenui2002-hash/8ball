@@ -48,33 +48,56 @@ Do not commit third-party videos or user-provided private captures to the public
 
 ## Recommended data mix
 
+- synthetic pretraining scenes generated locally;
 - public gameplay/reference material for visual diversity;
 - official Miniclip screenshots for current UI reference where licensing/usage permits;
 - a small target-device validation set from the real device, kept private;
 - hard negatives: loading screens, menus, ball numbers, highlights, pocket rims, cue graphics.
 
+Synthetic pretraining is deliberate: it teaches the model the visual concept of a long native guide, a contact ring, short outgoing branches, balls, glare and cue-like distractors before fine-tuning on real screenshots. This reduces the amount of real manual annotation needed.
+
 ## Commands
 
-Extract diverse frames:
+Install dependencies:
+
+```bash
+pip install -r ml/requirements.txt
+```
+
+Generate a synthetic pretraining set:
+
+```bash
+python ml/generate_synthetic.py ml/synthetic --count 2000
+python ml/make_splits.py --data ml/synthetic
+```
+
+Extract diverse frames from a real gameplay video:
 
 ```bash
 python ml/extract_frames.py input.mp4 ml/data/images --fps 2 --dedupe-threshold 6
 ```
 
-Train:
+Annotate real masks:
 
 ```bash
-pip install -r ml/requirements.txt
-python ml/train_segmentation.py --data ml/data --epochs 60 --batch-size 12
+python ml/annotate_masks.py ml/data/images ml/data/masks
+python ml/make_splits.py --data ml/data
+```
+
+Train (first synthetic, then fine-tune on real data):
+
+```bash
+python ml/train_segmentation.py --data ml/synthetic --epochs 30 --batch-size 12 --out ml/runs/synthetic
+python ml/train_segmentation.py --data ml/data --epochs 60 --batch-size 12 --out ml/runs/real
 ```
 
 Export the best checkpoint to ONNX:
 
 ```bash
-python ml/export_onnx.py --checkpoint ml/runs/best.pt --output ml/models/native_guide_seg.onnx
+python ml/export_onnx.py --checkpoint ml/runs/real/best.pt --output ml/models/native_guide_seg.onnx
 ```
 
-Preview inference + geometry:
+Preview inference + local geometry:
 
 ```bash
 python ml/preview_inference.py --model ml/models/native_guide_seg.onnx --image sample.jpg --output preview.jpg
