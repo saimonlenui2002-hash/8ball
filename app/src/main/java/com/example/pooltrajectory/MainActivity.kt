@@ -43,12 +43,12 @@ class MainActivity : Activity() {
         scroll.addView(root)
 
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 3.1"
+            text = "Pool Trajectory Offline 3.2"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "Исправлен выбор штатной развилки: прямое продолжение линии теперь разрешено, направление берётся из самого белого отрезка, а на загрузочных/меню-экранах линии не рисуются без найденного сукна."
+            text = "Версия под твой широкоформатный экран: область стола больше не ищется случайным контуром. Биток отсекается по сплошной белой области, а продолжение начинается точно из штатного кружка контакта."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -95,13 +95,13 @@ class MainActivity : Activity() {
         root.addView(bounces)
 
         root.addView(CheckBox(this).apply {
-            text = "Диагностика: показать границу стола, входящую линию и узел развилки"
+            text = "Диагностика: показать область стола, входящую линию и найденный узел"
             isChecked = prefs.getBoolean(KEY_DEBUG,false)
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean(KEY_DEBUG,checked).apply() }
         }, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(12) })
 
         root.addView(TextView(this).apply {
-            text = "Выбирай «одно приложение» → 8 Ball Pool. Для первого теста FPS 7, рикошеты 0, диагностика выключена. Если линия снова ошибётся — включи диагностику и пришли один скрин: зелёный крест покажет узел, который видит программа."
+            text = "Выбирай «одно приложение» → 8 Ball Pool. Первый тест: FPS 7, рикошеты 0, диагностика выключена. Если будет промах — включи диагностику и пришли один скрин того же положения кия."
             textSize = 14f
             setPadding(0,dp(20),0,0)
         })
@@ -132,7 +132,7 @@ class MainActivity : Activity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA,data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this,"Режим 3.1 запущен",Toast.LENGTH_LONG).show()
+            Toast.makeText(this,"Режим 3.2 запущен",Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
@@ -145,7 +145,7 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         status.text=if(Settings.canDrawOverlays(this)) {
-            "✓ Overlay разрешён. Версия 3.1.0 • связный поиск штатной развилки."
+            "✓ Overlay разрешён. Версия 3.2.0 • фильтр битка + стабильная область стола."
         } else "Нужно разрешение «поверх других приложений»."
     }
 
