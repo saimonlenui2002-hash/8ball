@@ -1,0 +1,28 @@
+{
+  "notes": "Reference/source manifest only. Do not commit downloaded third-party videos to this repository. Verify usage rights before training on redistributed material.",
+  "official_references": [
+    {
+      "title": "Miniclip Basic Controls - Improving your skills (8 Ball Pool)",
+      "url": "https://support.miniclip.com/hc/en-us/articles/35451942766865-Basic-Controls-Improving-your-skills-8-Ball-Pool",
+      "use": "current mobile aiming UI and native guideline reference"
+    },
+    {
+      "title": "Miniclip How to start playing 8 Ball Pool",
+      "url": "https://support.miniclip.com/hc/en-us/articles/360020665798--How-to-start-playing-8-Ball-Pool-",
+      "use": "mobile/offline-practice UI reference"
+    }
+  ],
+  "public_video_leads": [
+    {
+      "title": "Aimassist public YouTube channel lead",
+      "url": "https://youtube.com/c/BestAim",
+      "use": "visual reference for extended-guideline behavior; review individual videos and rights before dataset use"
+    }
+  ],
+  "search_queries": [
+    "8 Ball Pool mobile gameplay aiming guideline 2025",
+    "8 Ball Pool practice offline gameplay aim line",
+    "8 Ball Pool native guideline contact circle gameplay",
+    "8 Ball Pool thin cut shot gameplay mobile"
+  ]
+}
