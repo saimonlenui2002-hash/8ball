@@ -43,12 +43,12 @@ class MainActivity : Activity() {
         scroll.addView(root)
 
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 4.1 ML"
+            text = "Pool Trajectory Offline 4.2 ML"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "ML выделяет штатное кольцо и короткие ветки, а 4.1 строит их центральную ось по связанным пикселям без перебора угла. Прицельный и белый шар различаются по локально найденному центру прицельного шара, поэтому ветки больше не назначаются по принципу «ближе к входящей линии»."
+            text = "ML 4.2 берёт найденную штатную короткую ветку, заново вычисляет её центральный угол по белым пикселям исходного кадра и продолжает этот же луч до борта. Если найдены две ветки, обе продолжаются: жёлтая для прицельного шара, голубая пунктирная для белого."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -61,7 +61,7 @@ class MainActivity : Activity() {
         root.addView(status, LinearLayout.LayoutParams(-1,-2).apply { bottomMargin = dp(16) })
 
         root.addView(button("1. Разрешить показ поверх приложений") { requestOverlayPermission() })
-        root.addView(button("2. Запустить ML 4.1") { requestCapture() })
+        root.addView(button("2. Запустить ML 4.2") { requestCapture() })
         root.addView(button("Остановить помощник") {
             stopService(Intent(this, CaptureService::class.java))
             Toast.makeText(this,"Помощник остановлен",Toast.LENGTH_SHORT).show()
@@ -95,13 +95,13 @@ class MainActivity : Activity() {
         root.addView(bounces)
 
         root.addView(CheckBox(this).apply {
-            text = "Диагностика: зелёным показать центральную входящую линию, ML-ветки, контакт и центр прицельного шара"
+            text = "Диагностика: зелёным показать исходную ML-геометрию и уточнённый короткий отрезок 4.2"
             isChecked = prefs.getBoolean(KEY_DEBUG,false)
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean(KEY_DEBUG,checked).apply() }
         }, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(12) })
 
         root.addView(TextView(this).apply {
-            text = "Для теста: FPS 7, рикошеты 0. Статус «объект + биток» означает, что обе ветки классифицированы по центру прицельного шара. Если классификация неуверенная, 4.1 специально не рисует линию наугад."
+            text = "Для первого теста: FPS 7, рикошеты 0. Обрати внимание, что длинная жёлтая и длинная голубая линии должны быть прямым продолжением соответствующих коротких штатных белых веток до внутреннего борта."
             textSize = 14f
             setPadding(0,dp(20),0,0)
         })
@@ -132,7 +132,7 @@ class MainActivity : Activity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA,data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this,"ML 4.1 запущен",Toast.LENGTH_LONG).show()
+            Toast.makeText(this,"ML 4.2 запущен",Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
@@ -145,7 +145,7 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         status.text=if(Settings.canDrawOverlays(this)) {
-            "✓ Overlay разрешён. Версия 4.1.0 • ML-компоненты + точная геометрия + классификация шаров."
+            "✓ Overlay разрешён. Версия 4.2.0 • обе ветки продолжаются до борта по уточнённому углу."
         } else "Нужно разрешение «поверх других приложений»."
     }
 
