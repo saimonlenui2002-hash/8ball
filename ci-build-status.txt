@@ -1,4 +1,4 @@
 SUCCESS
-version=6.0
-commit=1d0e81e209fc6414d10d1b251ff3fb12549175c8
-time=2026-08-11T17:16:50Z
+version=6.1
+commit=8f99682d9e30a4336787245acac9b35aadd79b3e
+time=2026-08-11T18:14:52Z
