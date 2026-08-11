@@ -33,7 +33,7 @@ class CaptureService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
     private var overlay: OverlayController? = null
-    private var analyzer: NativeGuideMlAnalyzerV421? = null
+    private var analyzer: PrecisionTrajectoryAnalyzerV5? = null
     private var last = 0L
     private var captureWidth = 0
     private var captureHeight = 0
@@ -45,7 +45,7 @@ class CaptureService : Service() {
             NotificationChannel(CHANNEL, "Захват экрана", NotificationManager.IMPORTANCE_LOW)
         )
         OpenCVLoader.initLocal()
-        analyzer = NativeGuideMlAnalyzerV421(this)
+        analyzer = PrecisionTrajectoryAnalyzerV5(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -183,7 +183,7 @@ class CaptureService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Pool Trajectory Offline")
-            .setContentText("ML 4.2.1: цвет полотна не используется")
+            .setContentText("ML 5.0: точная геометрия линий и отскоков")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stop)
