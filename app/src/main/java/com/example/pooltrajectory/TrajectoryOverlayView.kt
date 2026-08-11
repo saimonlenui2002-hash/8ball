@@ -26,7 +26,7 @@ class TrajectoryOverlayView(context: Context) : View(context) {
     private val bounce = stroke(Color.rgb(255, 170, 60), 2.2f).apply {
         pathEffect = DashPathEffect(floatArrayOf(12f * density, 9f * density), 0f)
     }
-    // All in-table debug shapes are deliberately saturated. The 6.0 white-guide
+    // All in-table debug shapes are deliberately saturated. The 6.1 white-guide
     // detector rejects them, so MediaProjection cannot feed our own diagnostics
     // back into the next analysis frame.
     private val ghost = stroke(Color.argb(235, 255, 85, 115), 1.6f)
@@ -123,7 +123,7 @@ class TrajectoryOverlayView(context: Context) : View(context) {
         val targetFlag = if (target != null) "target✓" else "target×"
         val ghostFlag = if (r.ghostCueCenter != null) "ghost✓" else "ghost×"
         canvas.drawText(
-            "DEBUG 6.0 • ${r.status} • ${r.confidence}% • $cueFlag $targetFlag $ghostFlag",
+            "DEBUG 6.1 • ${r.status} • ${r.confidence}% • $cueFlag $targetFlag $ghostFlag",
             12f * density,
             24f * density,
             text
