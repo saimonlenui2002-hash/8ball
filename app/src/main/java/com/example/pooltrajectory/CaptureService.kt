@@ -33,7 +33,7 @@ class CaptureService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
     private var overlay: OverlayController? = null
-    private var analyzer: PrecisionTrajectoryAnalyzerV5? = null
+    private var analyzer: GeometryFirstAnalyzerV6? = null
     private var last = 0L
     private var captureWidth = 0
     private var captureHeight = 0
@@ -45,7 +45,7 @@ class CaptureService : Service() {
             NotificationChannel(CHANNEL, "Захват экрана", NotificationManager.IMPORTANCE_LOW)
         )
         OpenCVLoader.initLocal()
-        analyzer = PrecisionTrajectoryAnalyzerV5(this)
+        analyzer = GeometryFirstAnalyzerV6(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -79,6 +79,7 @@ class CaptureService : Service() {
         densityDpi = dm.densityDpi
         captureWidth = dm.widthPixels
         captureHeight = dm.heightPixels
+        DiagnosticRecorder.startSession(this, captureWidth, captureHeight)
 
         p.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
@@ -120,6 +121,7 @@ class CaptureService : Service() {
             oldReader?.close()
             busy.set(false)
             last = 0L
+            DiagnosticRecorder.startSession(this, width, height)
         } catch (_: Throwable) {
             newReader.setOnImageAvailableListener(null, null)
             newReader.close()
@@ -147,8 +149,13 @@ class CaptureService : Service() {
             val bmp = imageToBitmap(image)
             val result = analyzer?.analyze(bmp)
             bmp.recycle()
-            if (result != null) main.post { overlay?.update(result) }
+            if (result != null) {
+                DiagnosticRecorder.append(this, result)
+                main.post { overlay?.update(result) }
+            }
         } catch (_: Throwable) {
+            // A single bad capture must not kill the foreground service. The next
+            // frame is independent and the diagnostic stream resumes automatically.
         } finally {
             image.close()
             busy.set(false)
@@ -183,7 +190,7 @@ class CaptureService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Pool Trajectory Offline")
-            .setContentText("ML 5.0: точная геометрия линий и отскоков")
+            .setContentText("ML 6.0: центры шаров + геометрия контакта")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stop)
