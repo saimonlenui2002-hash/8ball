@@ -56,7 +56,7 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" = "0" ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/PoolTrajectoryOffline-v5.0.apk
+            cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.0.apk
           fi
           exit 0
 
@@ -74,7 +74,7 @@ jobs:
             echo "==== Last 350 log lines ===="
             tail -n 350 build.log
           } > ci-build-error.txt
-          printf 'FAILED\nversion=5.0\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
+          printf 'FAILED\nversion=6.0\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ci-build-error.txt ci-build-status.txt
@@ -89,7 +89,7 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
-          printf 'SUCCESS\nversion=5.0\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
+          printf 'SUCCESS\nversion=6.0\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ci-build-status.txt
@@ -100,8 +100,8 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: PoolTrajectoryOffline-v5.0
-          path: app/build/outputs/apk/debug/PoolTrajectoryOffline-v5.0.apk
+          name: PoolTrajectoryOffline-v6.0
+          path: app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.0.apk
           if-no-files-found: error
 
       - name: Publish direct APK download
@@ -110,11 +110,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="app/build/outputs/apk/debug/PoolTrajectoryOffline-v5.0.apk"
-          if gh release view v5.0 >/dev/null 2>&1; then
-            gh release upload v5.0 "$APK" --clobber
+          APK="app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.0.apk"
+          if gh release view v6.0 >/dev/null 2>&1; then
+            gh release upload v6.0 "$APK" --clobber
           else
-            gh release create v5.0 "$APK" \
-              --title "Pool Trajectory Offline v5.0" \
-              --notes "ML 5.0 precision baseline: the game's native short object/cue branches remain the authoritative direction signal; 5.0 reconstructs their common collision junction, ray-casts from that junction to an effective cushion boundary inset by one ball radius, and applies centre-of-ball bank geometry to both branches for up to two bounces."
+            gh release create v6.0 "$APK" \
+              --title "Pool Trajectory Offline v6.0" \
+              --notes "ML 6.0 geometry-first calibration build. Instead of trusting two tiny post-contact branches, it detects the native incoming guide plus cue/target ball centres, computes the ghost-ball contact and equal-mass post-contact directions, then uses native short white pixels only as a constrained correction. Long paths use the measured ball radius for cushion-centre geometry. A diagnostic recorder can export frame-by-frame geometry to Download for video-aligned calibration."
           fi
