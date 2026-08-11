@@ -26,11 +26,14 @@ class TrajectoryOverlayView(context: Context) : View(context) {
     private val bounce = stroke(Color.rgb(255, 170, 60), 2.2f).apply {
         pathEffect = DashPathEffect(floatArrayOf(12f * density, 9f * density), 0f)
     }
-    private val ghost = stroke(Color.argb(225, 255, 255, 255), 1.5f)
-    private val debug = stroke(Color.argb(150, 255, 255, 255), 1.0f)
-    private val cueDebug = stroke(Color.argb(235, 80, 220, 255), 1.7f)
-    private val targetDebug = stroke(Color.argb(235, 255, 100, 210), 1.7f)
-    private val ghostCross = stroke(Color.argb(240, 255, 255, 255), 1.3f)
+    // All in-table debug shapes are deliberately saturated. The 6.0 white-guide
+    // detector rejects them, so MediaProjection cannot feed our own diagnostics
+    // back into the next analysis frame.
+    private val ghost = stroke(Color.argb(235, 255, 85, 115), 1.6f)
+    private val debug = stroke(Color.argb(180, 180, 80, 255), 1.1f)
+    private val cueDebug = stroke(Color.argb(235, 65, 215, 255), 1.7f)
+    private val targetDebug = stroke(Color.argb(235, 255, 90, 205), 1.7f)
+    private val ghostCross = stroke(Color.argb(245, 255, 85, 115), 1.4f)
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         textSize = 12f * density
@@ -85,8 +88,6 @@ class TrajectoryOverlayView(context: Context) : View(context) {
             )
         }
 
-        // Preserve older analyzer diagnostics but do not redraw the two explicit 6.0
-        // balls a second time.
         r.balls.forEach { b ->
             val sameCue = cue != null && (b.center - cue.center).length() < 1.0
             val sameTarget = target != null && (b.center - target.center).length() < 1.0
