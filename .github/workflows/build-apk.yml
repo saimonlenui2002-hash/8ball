@@ -23,6 +23,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Materialize ML 6.1 analyzer
+        shell: bash
+        run: |
+          SRC="app/src/main/java/com/example/pooltrajectory/GeometryFirstAnalyzerV61.kt"
+          mkdir -p "$(dirname "$SRC")"
+          base64 -d ci/GeometryFirstAnalyzerV61.kt.gz.b64 | gzip -d > "$SRC"
+          grep -q "class GeometryFirstAnalyzerV61" "$SRC"
+          grep -q "findNativeGhostAlongRay" "$SRC"
+          grep -q "chooseTargetAroundGhost" "$SRC"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -56,7 +66,7 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" = "0" ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.0.apk
+            cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.1.apk
           fi
           exit 0
 
@@ -74,7 +84,7 @@ jobs:
             echo "==== Last 350 log lines ===="
             tail -n 350 build.log
           } > ci-build-error.txt
-          printf 'FAILED\nversion=6.0\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
+          printf 'FAILED\nversion=6.1\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ci-build-error.txt ci-build-status.txt
@@ -85,23 +95,23 @@ jobs:
         if: steps.build.outputs.exit_code != '0'
         run: exit 1
 
-      - name: Save success status
+      - name: Save success status and materialized source
         if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
-          printf 'SUCCESS\nversion=6.0\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
+          printf 'SUCCESS\nversion=6.1\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ci-build-status.txt
-          git commit -m "Record successful Android build [skip ci]" || true
+          git add ci-build-status.txt app/src/main/java/com/example/pooltrajectory/GeometryFirstAnalyzerV61.kt
+          git commit -m "Record ML 6.1 build and source [skip ci]" || true
           git push
 
       - name: Upload APK artifact
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: PoolTrajectoryOffline-v6.0
-          path: app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.0.apk
+          name: PoolTrajectoryOffline-v6.1
+          path: app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.1.apk
           if-no-files-found: error
 
       - name: Publish direct APK download
@@ -110,11 +120,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.0.apk"
-          if gh release view v6.0 >/dev/null 2>&1; then
-            gh release upload v6.0 "$APK" --clobber
+          APK="app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.1.apk"
+          if gh release view v6.1 >/dev/null 2>&1; then
+            gh release upload v6.1 "$APK" --clobber
           else
-            gh release create v6.0 "$APK" \
-              --title "Pool Trajectory Offline v6.0" \
-              --notes "ML 6.0 geometry-first calibration build. Instead of trusting two tiny post-contact branches, it detects the native incoming guide plus cue/target ball centres, computes the ghost-ball contact and equal-mass post-contact directions, then uses native short white pixels only as a constrained correction. Long paths use the measured ball radius for cushion-centre geometry. A diagnostic recorder can export frame-by-frame geometry to Download for video-aligned calibration."
+            gh release create v6.1 "$APK" \
+              --title "Pool Trajectory Offline v6.1" \
+              --notes "ML 6.1 ghost-first calibration from real field diagnostics. Incoming aim direction is chosen by two-sided continuous white-guide support with an anti-180-degree continuity guard. The game's native ghost ring is now the primary collision junction; the real object ball is selected approximately one cue+target radius away from that ghost, which prevents the ghost ring itself from being treated as a target. A conservative same-radius ENTRY-root ray collision remains only as fallback. Impossible backward normals and overlapping false circles are rejected before long trajectories are drawn."
           fi
