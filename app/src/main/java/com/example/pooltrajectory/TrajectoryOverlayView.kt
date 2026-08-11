@@ -18,21 +18,23 @@ class TrajectoryOverlayView(context: Context) : View(context) {
         this.color = color
     }
 
-    private val aim = stroke(Color.rgb(70,255,110),2.4f)
-    private val obj = stroke(Color.rgb(255,210,55),2.8f)
-    private val after = stroke(Color.rgb(70,210,255),2.2f).apply {
-        pathEffect = DashPathEffect(floatArrayOf(13f*density,9f*density),0f)
+    private val aim = stroke(Color.rgb(70, 255, 110), 2.4f)
+    private val obj = stroke(Color.rgb(255, 210, 55), 2.8f)
+    private val after = stroke(Color.rgb(70, 210, 255), 2.2f).apply {
+        pathEffect = DashPathEffect(floatArrayOf(13f * density, 9f * density), 0f)
     }
-    private val bounce = stroke(Color.rgb(255,170,60),2.2f).apply {
-        pathEffect = DashPathEffect(floatArrayOf(12f*density,9f*density),0f)
+    private val bounce = stroke(Color.rgb(255, 170, 60), 2.2f).apply {
+        pathEffect = DashPathEffect(floatArrayOf(12f * density, 9f * density), 0f)
     }
-    private val ghost = stroke(Color.argb(210,255,255,255),1.5f)
-    private val debug = stroke(Color.argb(150,255,255,255),1.0f)
-    private val cueDebug = stroke(Color.argb(220,80,220,255),1.6f)
+    private val ghost = stroke(Color.argb(225, 255, 255, 255), 1.5f)
+    private val debug = stroke(Color.argb(150, 255, 255, 255), 1.0f)
+    private val cueDebug = stroke(Color.argb(235, 80, 220, 255), 1.7f)
+    private val targetDebug = stroke(Color.argb(235, 255, 100, 210), 1.7f)
+    private val ghostCross = stroke(Color.argb(240, 255, 255, 255), 1.3f)
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         textSize = 12f * density
-        setShadowLayer(4f*density,1f,1f,Color.BLACK)
+        setShadowLayer(4f * density, 1f, 1f, Color.BLACK)
     }
 
     fun update(r: AnalysisResult) {
@@ -46,6 +48,7 @@ class TrajectoryOverlayView(context: Context) : View(context) {
 
         val sx = width.toDouble() / r.frameWidth
         val sy = height.toDouble() / r.frameHeight
+        val avgScale = (sx + sy) * 0.5
         fun x(v: Double) = (v * sx).toFloat()
         fun y(v: Double) = (v * sy).toFloat()
 
@@ -61,32 +64,68 @@ class TrajectoryOverlayView(context: Context) : View(context) {
 
         val prefs = context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
         val debugEnabled = prefs.getBoolean(MainActivity.KEY_DEBUG, false)
-        if (debugEnabled) {
-            if (r.ghostCueCenter != null && r.cueBall != null) {
+        if (!debugEnabled) return
+
+        r.playRect?.let {
+            canvas.drawRect(x(it.left), y(it.top), x(it.right), y(it.bottom), debug)
+        }
+
+        val cue = r.cueBall
+        val target = r.targetBall
+        if (cue != null) {
+            canvas.drawCircle(
+                x(cue.center.x), y(cue.center.y),
+                (cue.radius * avgScale).toFloat(), cueDebug
+            )
+        }
+        if (target != null) {
+            canvas.drawCircle(
+                x(target.center.x), y(target.center.y),
+                (target.radius * avgScale).toFloat(), targetDebug
+            )
+        }
+
+        // Preserve older analyzer diagnostics but do not redraw the two explicit 6.0
+        // balls a second time.
+        r.balls.forEach { b ->
+            val sameCue = cue != null && (b.center - cue.center).length() < 1.0
+            val sameTarget = target != null && (b.center - target.center).length() < 1.0
+            if (!sameCue && !sameTarget) {
                 canvas.drawCircle(
-                    x(r.ghostCueCenter.x),
-                    y(r.ghostCueCenter.y),
-                    (r.cueBall.radius * ((sx + sy) / 2)).toFloat(),
-                    ghost
-                )
-            }
-            r.balls.forEach { b ->
-                canvas.drawCircle(
-                    x(b.center.x),
-                    y(b.center.y),
-                    (b.radius * ((sx + sy) / 2)).toFloat(),
+                    x(b.center.x), y(b.center.y),
+                    (b.radius * avgScale).toFloat(),
                     if (b.isCue) cueDebug else debug
                 )
             }
-            r.playRect?.let {
-                canvas.drawRect(x(it.left), y(it.top), x(it.right), y(it.bottom), debug)
-            }
-            canvas.drawText(
-                "DEBUG • ${r.status} • ${r.confidence}% • balls=${r.balls.size}",
-                12f * density,
-                24f * density,
-                text
+        }
+
+        if (r.ghostCueCenter != null) {
+            val g = r.ghostCueCenter
+            val rr = ((cue?.radius ?: target?.radius ?: 12.0) * avgScale).toFloat()
+            canvas.drawCircle(x(g.x), y(g.y), rr, ghost)
+            val cross = 7f * density
+            canvas.drawLine(x(g.x) - cross, y(g.y), x(g.x) + cross, y(g.y), ghostCross)
+            canvas.drawLine(x(g.x), y(g.y) - cross, x(g.x), y(g.y) + cross, ghostCross)
+        }
+
+        if (cue != null && r.aimDirection != null) {
+            val d = r.aimDirection.normalized()
+            val length = 72.0
+            canvas.drawLine(
+                x(cue.center.x), y(cue.center.y),
+                x(cue.center.x + d.x * length), y(cue.center.y + d.y * length),
+                aim
             )
         }
+
+        val cueFlag = if (cue != null) "cue✓" else "cue×"
+        val targetFlag = if (target != null) "target✓" else "target×"
+        val ghostFlag = if (r.ghostCueCenter != null) "ghost✓" else "ghost×"
+        canvas.drawText(
+            "DEBUG 6.0 • ${r.status} • ${r.confidence}% • $cueFlag $targetFlag $ghostFlag",
+            12f * density,
+            24f * density,
+            text
+        )
     }
 }
