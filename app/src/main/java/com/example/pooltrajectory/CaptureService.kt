@@ -33,7 +33,7 @@ class CaptureService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
     private var overlay: OverlayController? = null
-    private var analyzer: GeometryFirstAnalyzerV61? = null
+    private var analyzer: GeometryFirstAnalyzerV62? = null
     private var last = 0L
     private var captureWidth = 0
     private var captureHeight = 0
@@ -45,7 +45,7 @@ class CaptureService : Service() {
             NotificationChannel(CHANNEL, "Захват экрана", NotificationManager.IMPORTANCE_LOW)
         )
         OpenCVLoader.initLocal()
-        analyzer = GeometryFirstAnalyzerV61(this)
+        analyzer = GeometryFirstAnalyzerV62(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -190,7 +190,7 @@ class CaptureService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Pool Trajectory Offline")
-            .setContentText("ML 6.1: native ghost + проверенная геометрия")
+            .setContentText("ML 6.2: 6.1 core + temporal/fallback guard")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stop)
