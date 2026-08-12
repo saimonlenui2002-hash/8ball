@@ -23,7 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Materialize ML 6.1 analyzer
+      - name: Materialize frozen ML 6.1 core
         shell: bash
         run: |
           SRC="app/src/main/java/com/example/pooltrajectory/GeometryFirstAnalyzerV61.kt"
@@ -32,6 +32,7 @@ jobs:
           grep -q "class GeometryFirstAnalyzerV61" "$SRC"
           grep -q "findNativeGhostAlongRay" "$SRC"
           grep -q "chooseTargetAroundGhost" "$SRC"
+          grep -q "class GeometryFirstAnalyzerV62" app/src/main/java/com/example/pooltrajectory/GeometryFirstAnalyzerV62.kt
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -66,7 +67,7 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" = "0" ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.1.apk
+            cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.2.apk
           fi
           exit 0
 
@@ -84,7 +85,7 @@ jobs:
             echo "==== Last 350 log lines ===="
             tail -n 350 build.log
           } > ci-build-error.txt
-          printf 'FAILED\nversion=6.1\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
+          printf 'FAILED\nversion=6.2\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ci-build-error.txt ci-build-status.txt
@@ -99,19 +100,19 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
-          printf 'SUCCESS\nversion=6.1\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
+          printf 'SUCCESS\nversion=6.2\ncommit=%s\ntime=%s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > ci-build-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ci-build-status.txt app/src/main/java/com/example/pooltrajectory/GeometryFirstAnalyzerV61.kt
-          git commit -m "Record ML 6.1 build and source [skip ci]" || true
+          git add ci-build-status.txt app/src/main/java/com/example/pooltrajectory/GeometryFirstAnalyzerV61.kt app/src/main/java/com/example/pooltrajectory/GeometryFirstAnalyzerV62.kt
+          git commit -m "Record ML 6.2 build and guarded source [skip ci]" || true
           git push
 
       - name: Upload APK artifact
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: PoolTrajectoryOffline-v6.1
-          path: app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.1.apk
+          name: PoolTrajectoryOffline-v6.2
+          path: app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.2.apk
           if-no-files-found: error
 
       - name: Publish direct APK download
@@ -120,11 +121,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.1.apk"
-          if gh release view v6.1 >/dev/null 2>&1; then
-            gh release upload v6.1 "$APK" --clobber
+          APK="app/build/outputs/apk/debug/PoolTrajectoryOffline-v6.2.apk"
+          if gh release view v6.2 >/dev/null 2>&1; then
+            gh release upload v6.2 "$APK" --clobber
           else
-            gh release create v6.1 "$APK" \
-              --title "Pool Trajectory Offline v6.1" \
-              --notes "ML 6.1 ghost-first calibration from real field diagnostics. Incoming aim direction is chosen by two-sided continuous white-guide support with an anti-180-degree continuity guard. The game's native ghost ring is now the primary collision junction; the real object ball is selected approximately one cue+target radius away from that ghost, which prevents the ghost ring itself from being treated as a target. A conservative same-radius ENTRY-root ray collision remains only as fallback. Impossible backward normals and overlapping false circles are rejected before long trajectories are drawn."
+            gh release create v6.2 "$APK" \
+              --title "Pool Trajectory Offline v6.2" \
+              --notes "ML 6.2 deliberately wraps the frozen 6.1 ghost-first core instead of replacing it. The new guard layer retains the last verified geometry only when an abrupt aim jump is accompanied by a much shorter or weaker native guide, detects sudden rayFallback target jumps after a stable nativeGhost frame, rejects only clearly weak fallback evidence, and calibrates accepted fallback confidence to a maximum of 82 with strong ghost evidence or 72 without it. Rendered object/cue branch starts may be snapped backward by a small bounded amount to meet nearby native white post-contact pixels without changing target, collision normal, or branch direction. Target-circle refitting and deeper detector rewrites are intentionally deferred until 6.2 field diagnostics prove they can improve accuracy without regression."
           fi
