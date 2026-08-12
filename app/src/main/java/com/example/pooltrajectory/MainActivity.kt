@@ -43,12 +43,12 @@ class MainActivity : Activity() {
         scroll.addView(root)
 
         root.addView(TextView(this).apply {
-            text = "Pool Trajectory Offline 6.0 Geometry"
+            text = "Pool Trajectory Offline 6.2 Guarded Geometry"
             textSize = 25f
             setTextColor(Color.BLACK)
         })
         root.addView(TextView(this).apply {
-            text = "6.0 больше не доверяет двум маленьким выходящим веткам как источнику физики. Сначала находятся штатная входящая линия, центр битка и реальный шар на её пути. Точка контакта и обе траектории рассчитываются из геометрии шаров; короткие белые ветки используются только как дополнительная точная коррекция направления. Если геометрия не подтверждена, длинная линия специально не рисуется."
+            text = "6.2 сохраняет проверенное ядро 6.1 и добавляет только защитный слой. Он удерживает последнюю подтверждённую геометрию при внезапной подмене основной штатной линии коротким/слабым сегментом, понижает доверие к rayFallback и отбрасывает явно слабый fallback, а начало рассчитанных цветных веток аккуратно подтягивает к концу видимой короткой белой ветки. Центры шаров, ghost-геометрия и физика столкновения 6.1 без явной причины не переписываются."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -61,7 +61,7 @@ class MainActivity : Activity() {
         root.addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
 
         root.addView(button("1. Разрешить показ поверх приложений") { requestOverlayPermission() })
-        root.addView(button("2. Запустить ML 6.0") { requestCapture() })
+        root.addView(button("2. Запустить ML 6.2") { requestCapture() })
         root.addView(button("Остановить помощник") {
             stopService(Intent(this, CaptureService::class.java))
             Toast.makeText(this, "Помощник остановлен", Toast.LENGTH_SHORT).show()
@@ -108,7 +108,7 @@ class MainActivity : Activity() {
 
         root.addView(section("Диагностика для точной калибровки"))
         root.addView(TextView(this).apply {
-            text = "Во время работы 6.0 автоматически записывает только геометрию распознавания: время кадра, центры/радиусы, направление, ghost-центр, линии, confidence и причину отказа. Скриншоты и содержимое игры в файл не сохраняются."
+            text = "Во время работы 6.2 автоматически записывает только геометрию распознавания: время кадра, центры/радиусы, направление, ghost-центр, линии, confidence, источник контакта и срабатывания защитного слоя 6.2. Скриншоты и содержимое игры в файл не сохраняются."
             textSize = 14f
             setPadding(0, 0, 0, dp(8))
         })
@@ -126,7 +126,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(TextView(this).apply {
-            text = "Для первого теста 6.0: FPS 7, рикошеты 0, экранную диагностику включить. Медленно проведи прицелом через несколько разных шаров 1–2 минуты. После теста вернись сюда, нажми «Экспорт диагностики в Download» и пришли файл вместе с записью экрана."
+            text = "Для первого теста 6.2: FPS 7, рикошеты 0, экранную диагностику включить. Медленно проведи прицелом через несколько разных шаров 1–2 минуты и отдельно сделай несколько быстрых переводов прицела. После теста экспортируй диагностику и пришли файл вместе с записью экрана."
             textSize = 14f
             setPadding(0, dp(20), 0, 0)
         })
@@ -162,7 +162,7 @@ class MainActivity : Activity() {
                 putExtra(CaptureService.EXTRA_PROJECTION_DATA, data)
             }
             startForegroundService(serviceIntent)
-            Toast.makeText(this, "ML 6.0 запущен", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "ML 6.2 запущен", Toast.LENGTH_LONG).show()
         }
         refreshStatus()
     }
@@ -180,7 +180,7 @@ class MainActivity : Activity() {
     private fun refreshStatus() {
         status.text = if (Settings.canDrawOverlays(this)) {
             val diag = if (DiagnosticRecorder.hasData(this)) " • диагностика накоплена" else ""
-            "✓ Overlay разрешён. Версия 6.0 • geometry-first$diag."
+            "✓ Overlay разрешён. Версия 6.2 • guarded geometry$diag."
         } else {
             "Нужно разрешение «поверх других приложений»."
         }
