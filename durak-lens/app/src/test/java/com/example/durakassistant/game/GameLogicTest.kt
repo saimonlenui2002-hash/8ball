@@ -15,7 +15,7 @@ class GameLogicTest {
     @Test
     fun `advisor uses lowest same-suit cover before trump`() {
         val state = GameKnowledge(
-            hand = setOf(Card(Rank.TEN, Suit.CLUBS), Card(Rank.NINE, Suit.HEARTS)),
+            hand = setOf(Card(Rank.TEN, Suit.CLUBS), Card(Rank.JACK, Suit.HEARTS)),
             table = listOf(TablePair(Card(Rank.NINE, Suit.CLUBS))),
             trump = Suit.HEARTS,
             phase = TurnPhase.DEFEND
