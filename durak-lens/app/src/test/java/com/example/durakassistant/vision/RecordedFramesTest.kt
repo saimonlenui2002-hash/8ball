@@ -1,7 +1,10 @@
 package com.example.durakassistant.vision
 
 import java.io.File
-import javax.imageio.ImageIO
+import java.io.DataInputStream
+import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
+import java.util.zip.InflaterInputStream
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -9,8 +12,41 @@ class RecordedFramesTest {
     private val core=RecognitionCore(File("src/main/assets/glyphs.txt").readText())
     private val counter=CountReader(File("src/main/assets/counts.txt").readText())
     private fun pixels(name:String):IntArray {
-        val image=ImageIO.read(javaClass.getResourceAsStream("/vision/$name.png"))
-        return image.getRGB(0,0,image.width,image.height,null,0,image.width)
+        val input=DataInputStream(javaClass.getResourceAsStream("/vision/$name.png"))
+        input.use {
+            val signature=ByteArray(8);it.readFully(signature)
+            val compressed=ByteArrayOutputStream()
+            var width=0;var height=0
+            while(true){
+                val size=it.readInt();val tag=ByteArray(4);it.readFully(tag)
+                val data=ByteArray(size);it.readFully(data);it.readInt()
+                when(String(tag, Charsets.US_ASCII)){
+                    "IHDR" -> {val header=DataInputStream(ByteArrayInputStream(data));width=header.readInt();height=header.readInt()
+                        check(header.readUnsignedByte()==8 && header.readUnsignedByte()==2)}
+                    "IDAT" -> compressed.write(data)
+                    "IEND" -> break
+                }
+            }
+            check(width==720 && height==1574)
+            val raw=DataInputStream(InflaterInputStream(ByteArrayInputStream(compressed.toByteArray())))
+            val pixels=IntArray(width*height);var previous=IntArray(width*3)
+            for(y in 0 until height){
+                val filter=raw.readUnsignedByte();val row=IntArray(width*3)
+                for(x in row.indices){
+                    val a=if(x>=3)row[x-3] else 0;val b=previous[x];val c=if(x>=3)previous[x-3] else 0
+                    val predictor=when(filter){
+                        0->0;1->a;2->b;3->(a+b)/2
+                        4->{val p=a+b-c;val pa=kotlin.math.abs(p-a);val pb=kotlin.math.abs(p-b);val pc=kotlin.math.abs(p-c)
+                            if(pa<=pb && pa<=pc)a else if(pb<=pc)b else c}
+                        else->error("Unsupported PNG filter")
+                    }
+                    row[x]=(raw.readUnsignedByte()+predictor) and 255
+                }
+                for(x in 0 until width)pixels[y*width+x]=0xff000000.toInt() or (row[x*3] shl 16) or (row[x*3+1] shl 8) or row[x*3+2]
+                previous=row
+            }
+            return pixels
+        }
     }
     private fun hand(name:String)=core.cards(pixels(name),720,1574,RecognitionCore.Box(0,1040,720,1338),true)
         .map{it.card.toString()}.toSet()
