@@ -59,14 +59,13 @@ class OverlayController(private val context: Context) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             x = (8 * density).roundToInt()
-            // Keep the panel above the table recognition area. FLAG_SECURE also
-            // prevents MediaProjection from reading the panel's own card text.
+            // Keep the panel above every recognition area so MediaProjection
+            // cannot feed the panel's own card text back into the analyzer.
             y = (8 * density).roundToInt()
         }
         makeDraggable(panel, layout)
