@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Durak Lens</string>
+    <string name="capture_channel">Распознавание партии</string>
+    <string name="capture_running">Идёт анализ экрана</string>
+</resources>
