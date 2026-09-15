@@ -30,6 +30,7 @@ import com.example.durakassistant.game.GameTracker
 import com.example.durakassistant.game.MoveAdvisor
 import com.example.durakassistant.overlay.OverlayController
 import com.example.durakassistant.vision.FrameAnalyzer
+import com.example.durakassistant.vision.ObservationStabilizer
 
 class CaptureService : Service() {
     private lateinit var workerThread: HandlerThread
@@ -39,6 +40,7 @@ class CaptureService : Service() {
     private lateinit var overlay: OverlayController
     private val tracker = GameTracker()
     private val advisor = MoveAdvisor()
+    private val stabilizer = ObservationStabilizer()
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
@@ -85,6 +87,7 @@ class CaptureService : Service() {
 
         releaseProjection()
         tracker.reset()
+        stabilizer.reset()
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val mediaProjection = manager.getMediaProjection(resultCode, resultData) ?: return stopCapture()
         mediaProjection.registerCallback(object : MediaProjection.Callback() {
@@ -125,7 +128,7 @@ class CaptureService : Service() {
         val bitmap = image.toBitmap()
         image.close()
         try {
-            val observation = analyzer.analyze(bitmap)
+            val observation = stabilizer.offer(analyzer.analyze(bitmap)) ?: return
             val knowledge = tracker.accept(observation)
             val advice = advisor.advise(knowledge)
             main.post { overlay.update(knowledge, advice) }

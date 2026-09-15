@@ -20,15 +20,15 @@ class GameTracker {
         var discarded = previous.discarded
         var knownOpponent = previous.knownOpponent
 
-        // A cleared table either went to discard or was taken. A rise in the
-        // opponent's hand count is the reliable signal that the opponent took it.
+        // A cleared, fully covered table is beaten. An uncovered table was taken
+        // by one of the players. This is more reliable than comparing deck OCR,
+        // which can briefly fluctuate during the dealing animation.
         if (previousTable.isNotEmpty() && currentTable.isEmpty()) {
-            val observedCount = observation.opponentCount
             val playerTook = observation.hand.any { it in previousTable }
-            val deckWasRefilled = observedDeck < previous.deckCount
-            if (!playerTook && !deckWasRefilled && previous.deckCount > 0) {
+            val fullyCovered = previous.table.all { it.defense != null }
+            if (!playerTook && !fullyCovered) {
                 knownOpponent = knownOpponent + previousTable
-            } else if (deckWasRefilled || (observedCount != null && observedCount <= previous.opponentCount)) {
+            } else if (!playerTook && fullyCovered) {
                 discarded = discarded + previousTable
             }
         }
@@ -39,14 +39,22 @@ class GameTracker {
 
         val hand = stableSet(observation.hand, previous.hand, observation.confidence)
         val trump = observation.trump ?: previous.trump
-        val deckCount = observedDeck
-        val opponentCount = observation.opponentCount ?: (
+        // The deck cannot grow during one game. The stabilizer already rejects
+        // single-frame OCR mistakes; this guard rejects any remaining increase.
+        val deckCount = minOf(previous.deckCount, observedDeck)
+        var opponentCount = observation.opponentCount ?: (
             Deck24.cards.size - deckCount - hand.size - discarded.size - currentTable.size
         ).coerceIn(0, Deck24.cards.size)
 
         val impossible = hand + currentTable + discarded
         val candidates = Deck24.cards - impossible
         knownOpponent = knownOpponent.intersect(candidates)
+        opponentCount = opponentCount.coerceIn(knownOpponent.size, candidates.size)
+
+        // Never claim more exact cards than can physically be in the opponent's
+        // hand. If tracking was started halfway through an animation, degrade to
+        // "possible" instead of showing false certainty.
+        if (knownOpponent.size > opponentCount) knownOpponent = emptySet()
 
         // With an empty deck, if the candidate count equals the number of hidden
         // cards, elimination has determined the complete opponent hand.
