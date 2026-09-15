@@ -86,13 +86,13 @@ class CaptureService : Service() {
         releaseProjection()
         tracker.reset()
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        projection = manager.getMediaProjection(resultCode, resultData).also { mediaProjection ->
-            mediaProjection.registerCallback(object : MediaProjection.Callback() {
-                override fun onStop() {
-                    if (projection === mediaProjection) main.post { stopCapture() }
-                }
-            }, main)
-        }
+        val mediaProjection = manager.getMediaProjection(resultCode, resultData) ?: return stopCapture()
+        mediaProjection.registerCallback(object : MediaProjection.Callback() {
+            override fun onStop() {
+                if (projection === mediaProjection) main.post { stopCapture() }
+            }
+        }, main)
+        projection = mediaProjection
 
         val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val bounds = windowManager.maximumWindowMetrics.bounds
