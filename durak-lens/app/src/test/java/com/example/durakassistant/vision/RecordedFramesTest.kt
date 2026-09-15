@@ -48,8 +48,11 @@ class RecordedFramesTest {
             return pixels
         }
     }
-    private fun hand(name:String)=core.cards(pixels(name),720,1574,RecognitionCore.Box(0,1040,720,1338),true)
-        .map{it.card.toString()}.toSet()
+    private fun hand(name:String):Set<String> {
+        val cards=core.cards(pixels(name),720,1574,RecognitionCore.Box(0,1040,720,1338),true)
+        assertTrue("Stable hand must be accepted by tracker: $name", core.lastScanComplete)
+        return cards.map{it.card.toString()}.toSet()
+    }
     @Test fun threeCardHandFromFailingRecording(){
         assertEquals(setOf("10♣","10♥","В♠"),hand("07"))
         assertTrue(core.lastScanComplete)

@@ -22,6 +22,7 @@ class OverlayController(private val context:Context,
     private var actions:LinearLayout?=null
     private var state=GameKnowledge()
     private var page=0
+    private var advice=Advice("Анализ", "Ожидаю стабильный кадр")
     private val scale get()=manager.maximumWindowMetrics.bounds.width()/720f
 
     fun show(){
@@ -38,9 +39,9 @@ class OverlayController(private val context:Context,
         title=label(20f);details=label(18f).apply{maxLines=4;minLines=4}
         panel.addView(title);panel.addView(details)
         val tabs=LinearLayout(context)
-        listOf("Мои","Бита","Соперник","Стол","Новая партия").forEachIndexed{i,t ->
+        listOf("Мои","Бита","Соперник","Стол","Ход","Сброс").forEachIndexed{i,t ->
             tabs.addView(label(17f).apply{text=t;gravity=Gravity.CENTER;setOnClickListener{
-                if(i==4)onReset() else {page=i;render()}
+                if(i==5)onReset() else {page=i;render()}
             }},LinearLayout.LayoutParams(0,(32*s).toInt(),1f))
         }
         panel.addView(tabs)
@@ -54,11 +55,11 @@ class OverlayController(private val context:Context,
         panel.addView(actions)
         val layout=WindowManager.LayoutParams((700*s).toInt(),WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;x=(10*s).toInt();y=(805*s).toInt()}
         manager.addView(panel,layout);root=panel;render()
     }
-    fun update(knowledge:GameKnowledge,advice:Advice){state=knowledge;if(root==null)show();render()}
+    fun update(knowledge:GameKnowledge,advice:Advice){state=knowledge;this.advice=advice;if(root==null)show();render()}
     private fun render(){
         val deck=if(state.deckConfirmed)state.deckCount.toString() else "?"
         title?.text="Колода: $deck · ${if(state.exactOpponent)"Рука соперника вычислена" else "Учёт партии"}"
@@ -68,6 +69,7 @@ class OverlayController(private val context:Context,
             1 -> "Бита (${state.discarded.size}): ${cards(state.discarded)}\n$warning"
             2 -> if(state.exactOpponent)"У соперника: ${cards(state.knownOpponent)}\nРасчёт по полностью учтённой партии"
                 else "Подтверждены: ${cards(state.knownOpponent)}\nВозможны: ${cards(state.possibleOpponent-state.knownOpponent)}\n$warning"
+            4 -> if(state.trackingWarning.isEmpty())"${advice.title}\n${advice.detail}" else "Подсказка приостановлена\n$warning"
             else -> "Стол: ${cards(state.table.flatMap{listOfNotNull(it.attack,it.defense)}.toSet())}\nНе определено: ${cards(state.pendingCards)}\n$warning"
         }
         actions?.visibility=if(state.pendingCards.isEmpty())View.GONE else View.VISIBLE
