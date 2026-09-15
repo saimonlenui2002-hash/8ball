@@ -27,7 +27,9 @@ class ObservationStabilizer {
 
         val handFrames = history.toList()
         val tableFrames = handFrames.takeLast(TABLE_WINDOW)
-        val hand = majorityCards(handFrames.map { it.hand }, requiredVotes(handFrames.size))
+        val handMode=handFrames.filter{it.handComplete}.groupBy{it.hand}.maxByOrNull{it.value.size}
+        val hand=handMode?.key?:observation.hand
+        val handComplete=handMode!=null && handMode.value.size>=3 && observation.handComplete && observation.hand==hand
         val tableCards = majorityCards(tableFrames.map { it.tableCards }, 2)
         val table = stableTable(tableFrames, tableCards)
         val trump = handFrames.mapNotNull { it.trump }
@@ -53,7 +55,11 @@ class ObservationStabilizer {
             hand = hand,
             table = table,
             trump = trump,
-            deckCount = confirmedDeck,
+            // A previous confirmed value must not turn an unread live frame into
+            // positive evidence of an empty deck or a new deal.
+            deckCount = if(observation.deckCount==confirmedDeck)confirmedDeck else null,
+            handComplete = handComplete,
+            tableComplete = observation.tableComplete && tableFrames.count{it.tableCards==tableCards && it.tableComplete}>=2,
             confidence = handFrames.map { it.confidence }.average().toFloat()
         )
     }

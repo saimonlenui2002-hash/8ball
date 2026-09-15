@@ -1,72 +1,62 @@
 package com.example.durakassistant.game
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 
 class GameTrackerTest {
-    private val nineSpades = Card(Rank.NINE, Suit.SPADES)
-    private val tenSpades = Card(Rank.TEN, Suit.SPADES)
-    private val aceHearts = Card(Rank.ACE, Suit.HEARTS)
-
-    @Test
-    fun coveredTableGoesToDiscard() {
-        val tracker = GameTracker()
-        tracker.accept(observation(table = listOf(TablePair(nineSpades, tenSpades))))
-
-        val state = tracker.accept(observation())
-
-        assertEquals(setOf(nineSpades, tenSpades), state.discarded)
-        assertTrue(state.opponentTaken.isEmpty())
+    private val own=Deck24.cards.take(6).toSet()
+    private val other=Deck24.cards.drop(6)
+    private fun observation(hand:Set<Card> = own, table:List<TablePair> = emptyList(),deck:Int? = 12,
+        complete:Boolean = true)=Observation(hand,table,Suit.CLUBS,deck,null,TurnPhase.UNKNOWN,.9f,
+            handComplete=complete,tableComplete=true)
+    private fun start():GameTracker=GameTracker().also{t->repeat(3){t.accept(observation())}}
+    @Test fun coveredRoundGoesToDiscardOnce(){
+        val t=start();val pair=TablePair(other[0],other[1])
+        t.accept(observation(table=listOf(pair)))
+        repeat(5){t.accept(observation())}
+        assertEquals(setOf(other[0],other[1]),t.current().discarded)
+        assertTrue(t.current().knownOpponent.isEmpty())
     }
-
-    @Test
-    fun uncoveredTableMovingIntoMyHandIsNotAssignedToOpponent() {
-        val tracker = GameTracker()
-        tracker.accept(observation(table = listOf(TablePair(nineSpades))))
-        tracker.accept(observation(hand = setOf(nineSpades, aceHearts)))
-
-        val state = tracker.accept(observation(hand = setOf(nineSpades, aceHearts)))
-
-        assertTrue(state.opponentTaken.isEmpty())
-        assertFalse(nineSpades in state.knownOpponent)
+    @Test fun disappearingUncoveredTableRequiresEvidence(){
+        val t=start();t.accept(observation(table=listOf(TablePair(other[0]))))
+        repeat(8){t.accept(observation())}
+        assertEquals(setOf(other[0]),t.current().pendingCards)
+        assertFalse(other[0] in t.current().knownOpponent)
+        t.resolve(GameTracker.Outcome.OPPONENT)
+        assertTrue(other[0] in t.current().knownOpponent)
+        assertTrue(t.current().pendingCards.isEmpty())
     }
-
-    @Test
-    fun uncoveredTableMissingFromMyHandIsAssignedToOpponent() {
-        val tracker = GameTracker()
-        tracker.accept(observation(table = listOf(TablePair(nineSpades))))
-        repeat(4) { tracker.accept(observation(hand = setOf(aceHearts))) }
-
-        val state = tracker.current()
-
-        assertTrue(nineSpades in state.opponentTaken)
-        assertTrue(nineSpades in state.knownOpponent)
+    @Test fun playerTakeIsNeverAnOpponentTake(){
+        val t=start();t.accept(observation(table=listOf(TablePair(other[0]))))
+        repeat(5){t.accept(observation(hand=own+other[0]))}
+        assertTrue(t.current().knownOpponent.isEmpty())
+        assertTrue(t.current().pendingCards.isEmpty())
+        assertTrue(t.current().discarded.isEmpty())
     }
-
-    @Test
-    fun emptyDeckMakesRemainingOpponentCardsExact() {
-        val tracker = GameTracker()
-        val myHand = setOf(nineSpades, tenSpades, aceHearts)
-
-        val state = tracker.accept(observation(hand = myHand, deck = 0))
-
-        assertEquals(Deck24.cards - myHand, state.knownOpponent)
-        assertEquals(state.knownOpponent.size, state.opponentCount)
+    @Test fun unreadDeckAndHandNeverRevealAllUnknownCards(){
+        val t=start();repeat(8){t.accept(observation(hand=emptySet(),deck=null,complete=false))}
+        assertEquals(12,t.current().deckCount)
+        assertFalse(t.current().exactOpponent)
+        assertTrue(t.current().knownOpponent.isEmpty())
     }
-
-    private fun observation(
-        hand: Set<Card> = setOf(aceHearts),
-        table: List<TablePair> = emptyList(),
-        deck: Int = 12
-    ) = Observation(
-        hand = hand,
-        table = table,
-        trump = Suit.CLUBS,
-        deckCount = deck,
-        opponentCount = null,
-        phase = TurnPhase.UNKNOWN,
-        confidence = 0.9f
-    )
+    @Test fun startingInMiddleCannotClaimExactHand(){
+        val t=GameTracker();t.accept(observation(deck=0))
+        assertFalse(t.current().exactOpponent)
+    }
+    @Test fun completeHistoryRevealsRemainderAfterDeckEmpty(){
+        val t=start()
+        for(i in 0 until 12 step 2){
+            t.accept(observation(table=listOf(TablePair(other[i],other[i+1]))))
+            repeat(3){t.accept(observation())}
+        }
+        val s=t.accept(observation(deck=0))
+        assertTrue(s.exactOpponent)
+        assertEquals(other.drop(12).toSet(),s.knownOpponent)
+        assertEquals(12,s.discarded.size)
+    }
+    @Test fun pendingTakeBlocksExactHand(){
+        val t=start();t.accept(observation(table=listOf(TablePair(other[0]))))
+        repeat(3){t.accept(observation(deck=0))}
+        assertFalse(t.current().exactOpponent)
+    }
 }

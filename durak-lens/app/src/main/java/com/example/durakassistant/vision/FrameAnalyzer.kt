@@ -2,67 +2,80 @@ package com.example.durakassistant.vision
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
+import android.graphics.Canvas
 import android.graphics.Rect
-import com.example.durakassistant.game.Observation
-import com.example.durakassistant.game.TablePair
-import com.example.durakassistant.game.TurnPhase
+import com.example.durakassistant.game.*
 import kotlin.math.abs
 
 class FrameAnalyzer(context: Context) {
-    private val glyphs = GlyphMatcher(context)
-    private val deckCounter = DeckCounter(context)
+    private val core=RecognitionCore(context.assets.open("glyphs.txt").bufferedReader().use{it.readText()})
+    private val counts=CountReader(context.assets.open("counts.txt").bufferedReader().use{it.readText()})
 
-    fun analyze(frame: Bitmap): Observation {
-        val w = frame.width; val h = frame.height
-        val hand = glyphs.findCards(frame, Realme16Profile.hand(w, h))
-        val tableDetections = glyphs.findCards(frame, Realme16Profile.table(w, h))
-        val trump = glyphs.findTrumpSuit(frame, Realme16Profile.trump(w, h))
-        val deck = deckCounter.read(frame, Realme16Profile.deckCounter(w, h))
-        val table = pairTable(tableDetections)
-        val userCanAct = hasRedActionCue(frame, Realme16Profile.actionCue(w, h))
-        val confidenceParts = hand.map { it.confidence } + tableDetections.map { it.confidence } + listOfNotNull(trump?.second, deck?.second)
-        val confidence = if (confidenceParts.isEmpty()) 0f else confidenceParts.average().toFloat()
-        val phase = when {
-            !userCanAct -> TurnPhase.WAIT
-            table.isEmpty() -> TurnPhase.ATTACK
-            table.any { it.defense == null } -> TurnPhase.DEFEND
-            else -> TurnPhase.ATTACK
-        }
-        return Observation(
-            hand = hand.map { it.card }.toSet(),
-            table = table,
-            trump = trump?.first,
-            deckCount = deck?.first,
-            opponentCount = null,
-            phase = phase,
-            confidence = confidence
-        )
+    fun analyze(frame:Bitmap):Observation {
+        val canonical=canonicalFrame(frame)
+        try {
+            val p=IntArray(720*1574);canonical.getPixels(p,0,720,0,0,720,1574)
+            val hand=core.cards(p,720,1574,RecognitionCore.Box(0,1040,720,1338),true)
+            val handComplete=core.lastScanComplete && hand.isNotEmpty()
+            val detections=core.cards(p,720,1574,RecognitionCore.Box(80,470,680,790),false)
+            val tableComplete=core.lastScanComplete
+            val deck=counts.read(p,720,1574) ?: if(counts.hasExhaustedDeckIcon(p,720,1574,core))0 else null
+            val trump=core.trump(p,720,1574,RecognitionCore.Box(0,620,90,810))
+            val table=pairTable(detections)
+            // The green border around the player's avatar is the turn signal.
+            // Red buttons are available while waiting too, so they are not used.
+            var green=0
+            for(y in 1360 until 1480 step 3)for(x in 295 until 425 step 3){
+                val c=p[y*720+x];val r=c shr 16 and 255;val g=c shr 8 and 255;val b=c and 255
+                if(g>140 && r in 60..190 && g>r*1.15 && b<100)green++
+            }
+            val phase=when {
+                green<45 -> TurnPhase.WAIT
+                !handComplete || !tableComplete -> TurnPhase.UNKNOWN
+                table.isEmpty() -> TurnPhase.ATTACK
+                table.any{it.defense==null} -> TurnPhase.DEFEND
+                else -> TurnPhase.ATTACK
+            }
+            return Observation(hand.map{it.card}.toSet(),table,trump,deck,null,phase,
+                (hand+detections).map{it.score}.takeIf{it.isNotEmpty()}?.average()?.toFloat()?:0f,
+                handComplete=handComplete,tableComplete=tableComplete)
+        } finally {canonical.recycle()}
     }
 
-    private fun hasRedActionCue(bitmap: Bitmap, region: Rect): Boolean {
-        var red = 0
-        var sampled = 0
-        for (y in region.top until region.bottom step 3) for (x in region.left until region.right step 3) {
-            val c = bitmap.getPixel(x, y)
-            val r = Color.red(c); val g = Color.green(c); val b = Color.blue(c)
-            if (r > 175 && r > g * 1.55f && r > b * 1.35f) red++
-            sampled++
+    private fun canonicalFrame(source:Bitmap):Bitmap {
+        val scaled=Bitmap.createScaledBitmap(source,720,(source.height*720f/source.width).toInt(),true)
+        val w=720;val h=scaled.height;val pixels=IntArray(w*h);scaled.getPixels(pixels,0,w,0,0,w,h)
+        // Align to the game board and the white action strip, not the status bar.
+        fun blue(y:Int):Boolean {
+            var n=0
+            for(x in 100 until 700 step 10){val c=pixels[y*w+x];val r=c shr 16 and 255;val g=c shr 8 and 255;val b=c and 255
+                if(b>r*1.25 && g>r*1.1 && r in 20..130)n++}
+            return n>38
         }
-        return sampled > 0 && red.toFloat() / sampled > 0.006f
+        val top=(0 until h/3).firstOrNull{blue(it)}?:78
+        val bottom=(h*3/4 until h-20).firstOrNull{y ->
+            var white=0
+            for(x in 10 until 710 step 10){val c=pixels[y*w+x];if((c shr 16 and 255)>220&&(c shr 8 and 255)>220&&(c and 255)>220)white++}
+            white>66
+        }?: (h*1338/1574)
+        val out=Bitmap.createBitmap(720,1574,Bitmap.Config.ARGB_8888)
+        val sy=(1338f-78)/((bottom-top).coerceAtLeast(500))
+        val dest=Rect(0,(78-top*sy).toInt(),720,(78+(h-top)*sy).toInt())
+        Canvas(out).drawBitmap(scaled,null,dest,null)
+        if(scaled!==source)scaled.recycle()
+        return out
     }
 
-    private fun pairTable(cards: List<CardDetection>): List<TablePair> {
-        val remaining = cards.toMutableList()
-        val pairs = mutableListOf<TablePair>()
-        while (remaining.isNotEmpty()) {
-            val attack = remaining.removeAt(0)
-            val defense = remaining
-                .filter { it.bounds.top >= attack.bounds.top - 20 }
-                .minByOrNull { abs(it.bounds.centerX() - attack.bounds.centerX()) + abs(it.bounds.top - attack.bounds.top) }
-                ?.takeIf { abs(it.bounds.centerX() - attack.bounds.centerX()) < 135 && abs(it.bounds.top - attack.bounds.top) < 150 }
-            if (defense != null) remaining.remove(defense)
-            pairs += TablePair(attack.card, defense?.card)
+    private fun pairTable(cards:List<RecognitionCore.Detection>):List<TablePair> {
+        val remaining=cards.sortedBy{it.box.top}.toMutableList();val pairs=mutableListOf<TablePair>()
+        while(remaining.isNotEmpty()) {
+            val attack=remaining.removeAt(0)
+            val defense=remaining.filter{
+                it.box.left>attack.box.left && it.box.left-attack.box.left in 15..85 &&
+                    it.box.top-attack.box.top in 5..55 && it.card!=attack.card
+            }.minByOrNull{abs(it.box.top-attack.box.top)+abs(it.box.left-attack.box.left)}
+            if(defense!=null)remaining.remove(defense)
+            pairs+=TablePair(attack.card,defense?.card)
         }
         return pairs
     }

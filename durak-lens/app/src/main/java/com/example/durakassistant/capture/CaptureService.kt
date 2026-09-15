@@ -51,7 +51,18 @@ class CaptureService : Service() {
         workerThread = HandlerThread("durak-frame-analysis").apply { start() }
         worker = Handler(workerThread.looper)
         analyzer = FrameAnalyzer(this)
-        overlay = OverlayController(this)
+        overlay = OverlayController(this, onOutcome = { outcome ->
+            worker.post {
+                val state=tracker.resolve(outcome)
+                main.post { overlay.update(state, advisor.advise(state)) }
+            }
+        }, onReset = {
+            worker.post {
+                tracker.reset(); stabilizer.reset()
+                val state=tracker.current()
+                main.post { overlay.update(state, advisor.advise(state)) }
+            }
+        })
         createNotificationChannel()
     }
 

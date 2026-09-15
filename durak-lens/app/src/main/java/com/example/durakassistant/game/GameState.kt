@@ -11,7 +11,9 @@ data class Observation(
     val deckCount: Int?,
     val opponentCount: Int?,
     val phase: TurnPhase = TurnPhase.UNKNOWN,
-    val confidence: Float = 0f
+    val confidence: Float = 0f,
+    val handComplete: Boolean = false,
+    val tableComplete: Boolean = false
 ) {
     val tableCards: Set<Card> get() = table.flatMap { listOfNotNull(it.attack, it.defense) }.toSet()
 }
@@ -26,6 +28,10 @@ data class GameKnowledge(
     val possibleOpponent: Set<Card> = Deck24.cards,
     val discarded: Set<Card> = emptySet(),
     val opponentTaken: Set<Card> = emptySet(),
+    val deckConfirmed: Boolean = false,
+    val exactOpponent: Boolean = false,
+    val pendingCards: Set<Card> = emptySet(),
+    val trackingWarning: String = "Начните захват до раздачи",
     val lastEvent: String = "Ожидаю начало партии",
     val phase: TurnPhase = TurnPhase.UNKNOWN,
     val confidence: Float = 0f

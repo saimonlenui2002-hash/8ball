@@ -1,146 +1,122 @@
 package com.example.durakassistant.game
 
+/** Tracks a whole round; a single empty frame is not an opponent take. */
 class GameTracker {
-    private var state = GameKnowledge()
-    private var pendingClear: PendingClear? = null
+    enum class Outcome { DISCARD, PLAYER, OPPONENT }
+    private var state=GameKnowledge()
+    private var roundCards=emptySet<Card>()
+    private var coveredCards=emptySet<Card>()
+    private var emptyFrames=0
+    private var started=false
+    private var historyComplete=false
+    private var startVotes=0
 
-    @Synchronized
-    fun reset() {
-        state = GameKnowledge()
-        pendingClear = null
+    @Synchronized fun reset(){
+        state=GameKnowledge();roundCards=emptySet();coveredCards=emptySet()
+        emptyFrames=0;started=false;historyComplete=false;startVotes=0
     }
+    @Synchronized fun current():GameKnowledge=state
 
-    @Synchronized
-    fun current(): GameKnowledge = state
-
-    @Synchronized
-    fun accept(observation: Observation): GameKnowledge {
-        val previous = state
-        val observedTable = observation.tableCards
-
-        // A stable return to 12 cards after an exhausted deck is a new deal.
-        if (observation.deckCount == 12 && previous.deckCount <= 2 &&
-            observedTable.isEmpty() && observation.hand.size in 4..8
-        ) {
-            pendingClear = null
-            state = freshState(observation)
-            return state
-        }
-
-        val previousTable = previous.table.flatMap { listOfNotNull(it.attack, it.defense) }.toSet()
-        val deckCount = observation.deckCount?.let { minOf(previous.deckCount, it) } ?: previous.deckCount
-        var discarded = previous.discarded
-        var knownOpponent = previous.knownOpponent
-        var opponentTaken = previous.opponentTaken
-        var lastEvent = previous.lastEvent
-
-        // Resolve an uncovered cleared table only after the hand recognizer had
-        // enough frames to see whether those cards moved into the player's hand.
-        pendingClear?.let { pending ->
-            pending.age++
-            val returnedToPlayer = pending.cards.intersect(observation.hand)
-            when {
-                returnedToPlayer.isNotEmpty() -> {
-                    lastEvent = "Вы взяли: ${format(pending.cards)}"
-                    pendingClear = null
-                }
-                pending.age >= TAKE_CONFIRM_FRAMES -> {
-                    knownOpponent += pending.cards
-                    opponentTaken += pending.cards
-                    lastEvent = "Соперник взял: ${format(pending.cards)}"
-                    pendingClear = null
-                }
-            }
-        }
-
-        if (previousTable.isNotEmpty() && observedTable.isEmpty() && pendingClear == null) {
-            val fullyCovered = previous.table.all { it.defense != null }
-            if (fullyCovered) {
-                discarded += previousTable
-                lastEvent = "Ушли в биту: ${format(previousTable)}"
-            } else {
-                pendingClear = PendingClear(previousTable)
-                lastEvent = "Проверяю, кто взял карты…"
-            }
-        }
-
-        // A unique card cannot be in the hand, on the table and in another
-        // tracked zone simultaneously. Prefer visible cards over inferred ones.
-        val currentTable = observedTable - discarded
-        val hand = observation.hand - currentTable - discarded
-        knownOpponent = (knownOpponent - currentTable - hand).intersect(Deck24.cards - discarded)
-
-        val impossible = hand + currentTable + discarded
-        val candidates = Deck24.cards - impossible
-        var opponentCount = observation.opponentCount ?: (
-            Deck24.cards.size - deckCount - hand.size - discarded.size - currentTable.size
-        )
-        opponentCount = opponentCount.coerceIn(knownOpponent.size, candidates.size)
-
-        // Once the deck is empty, every card not visible in the player's hand,
-        // on the table or in discard must be in the opponent's hand.
-        if (deckCount == 0 && pendingClear == null) {
-            knownOpponent = candidates
-            opponentCount = candidates.size
-            lastEvent = "Колода закончилась — рука соперника вычислена"
-        }
-
-        state = GameKnowledge(
-            hand = hand,
-            table = observation.table.filter { it.attack in currentTable }.map {
-                TablePair(it.attack, it.defense?.takeIf { card -> card in currentTable })
-            },
-            trump = observation.trump ?: previous.trump,
-            deckCount = deckCount.coerceIn(0, 12),
-            opponentCount = opponentCount,
-            knownOpponent = knownOpponent.intersect(candidates),
-            possibleOpponent = candidates,
-            discarded = discarded,
-            opponentTaken = opponentTaken,
-            lastEvent = lastEvent,
-            phase = resolvePhase(observation),
-            confidence = observation.confidence
-        )
+    @Synchronized fun resolve(outcome:Outcome):GameKnowledge {
+        val cards=state.pendingCards
+        if(cards.isEmpty())return state
+        state=when(outcome){
+            Outcome.DISCARD -> state.copy(discarded=state.discarded+cards,
+                knownOpponent=state.knownOpponent-cards,lastEvent="Подтверждена бита")
+            Outcome.PLAYER -> state.copy(hand=state.hand+cards,
+                knownOpponent=state.knownOpponent-cards,lastEvent="Вы взяли стол")
+            Outcome.OPPONENT -> state.copy(knownOpponent=state.knownOpponent+cards,
+                opponentTaken=state.opponentTaken+cards,lastEvent="Соперник взял стол")
+        }.copy(pendingCards=emptySet(),exactOpponent=false)
         return state
     }
 
-    private fun freshState(observation: Observation): GameKnowledge {
-        val tableCards = observation.tableCards
-        val hand = observation.hand - tableCards
-        val candidates = Deck24.cards - hand - tableCards
-        val opponentCount = (Deck24.cards.size - 12 - hand.size - tableCards.size).coerceAtLeast(0)
-        return GameKnowledge(
-            hand = hand,
-            table = observation.table,
-            trump = observation.trump,
-            deckCount = 12,
-            opponentCount = opponentCount,
-            possibleOpponent = candidates,
-            lastEvent = "Началась новая партия",
-            phase = resolvePhase(observation),
-            confidence = observation.confidence
-        )
-    }
+    @Synchronized fun accept(o:Observation):GameKnowledge {
+        val newDeal=o.deckCount==12 && o.hand.size==6 && o.handComplete && o.tableCards.isEmpty()
+        if(newDeal && (!started || state.deckCount<=2)){
+            startVotes++
+            if(startVotes>=3){
+                reset();started=true;historyComplete=true
+                state=GameKnowledge(hand=o.hand,trump=o.trump,deckCount=12,deckConfirmed=true,
+                    lastEvent="Новая партия: 24 карты",trackingWarning="")
+            }
+        }else startVotes=0
 
-    private fun resolvePhase(observation: Observation): TurnPhase {
-        if (observation.phase != TurnPhase.UNKNOWN) return observation.phase
-        val attacks = observation.table.size
-        val defenses = observation.table.count { it.defense != null }
-        return when {
-            attacks == 0 -> TurnPhase.ATTACK
-            attacks > defenses -> TurnPhase.DEFEND
-            attacks == defenses -> TurnPhase.ATTACK
-            else -> TurnPhase.WAIT
+        // Retain confirmed zones across occlusion/animations. An unread hand
+        // means incomplete observation, not that every missing card is hidden.
+        if(!o.handComplete){
+            state=state.copy(exactOpponent=false,phase=TurnPhase.UNKNOWN,
+                trackingWarning="Рука не полностью видна — жду стабильный кадр")
+            return state
         }
+        val previous=state
+        var discarded=previous.discarded
+        var known=previous.knownOpponent
+        var taken=previous.opponentTaken
+        var pending=previous.pendingCards
+        var event=previous.lastEvent
+        val conflicts=discarded.intersect(o.hand+o.tableCards)
+        if(conflicts.isNotEmpty()){
+            discarded-=conflicts;historyComplete=false
+            event="Есть противоречие с битой — точный расчёт остановлен"
+        }
+        val deck=o.deckCount?:previous.deckCount
+        if(previous.deckConfirmed && o.deckCount!=null && deck>previous.deckCount && !newDeal){
+            state=previous.copy(exactOpponent=false,trackingWarning="Проверяю счётчик колоды")
+            return state
+        }
+        if(o.tableCards.isNotEmpty()){
+            emptyFrames=0
+            if(pending.isNotEmpty()){
+                // A table reappearing immediately is an occlusion, not a take.
+                if(o.tableCards.any{it in pending}){roundCards+=pending;pending=emptySet()}
+                else {historyComplete=false;event="Предыдущий стол требует подтверждения"}
+            }
+            roundCards+=o.tableCards
+            for(pair in o.table) if(pair.defense!=null)coveredCards+=setOf(pair.attack,pair.defense)
+            known-=o.tableCards
+        }else if(o.tableComplete){
+            emptyFrames++
+            if(emptyFrames>=3 && roundCards.isNotEmpty()){
+                val playerReceived=roundCards.all{it in o.hand}
+                when {
+                    playerReceived -> event="Вы взяли: ${format(roundCards)}"
+                    coveredCards.containsAll(roundCards) -> {
+                        discarded+=roundCards;known-=roundCards
+                        event="Бита: ${format(roundCards)}"
+                    }
+                    else -> {pending+=roundCards;event="Кто забрал стол? Подтвердите ниже"}
+                }
+                roundCards=emptySet();coveredCards=emptySet()
+            }
+        }
+        if(pending.isNotEmpty() && pending.all{it in o.hand}){
+            event="Вы взяли: ${format(pending)}";pending=emptySet()
+        }
+        val missingFromHand=previous.hand-o.hand
+        if(previous.hand.isNotEmpty() && missingFromHand.any{it !in roundCards && it !in discarded && it !in o.tableCards && it !in pending}){
+            historyComplete=false
+        }
+        val table=o.tableCards
+        val hand=o.hand-table
+        known-=hand+table+discarded
+        val possible=Deck24.cards-hand-table-discarded-pending
+        val exact=historyComplete && pending.isEmpty() && deck==0 && o.deckCount==0 && o.tableComplete
+        if(exact)known=possible
+        val count=(24-deck-hand.size-table.size-discarded.size-pending.size).coerceIn(0,possible.size)
+        state=GameKnowledge(hand=hand,table=o.table,trump=o.trump?:previous.trump,
+            deckCount=deck,deckConfirmed=o.deckCount!=null||previous.deckConfirmed,
+            opponentCount=count,knownOpponent=known.intersect(possible),possibleOpponent=possible,
+            discarded=discarded,opponentTaken=taken,pendingCards=pending,exactOpponent=exact,
+            lastEvent=event,phase=if(pending.isEmpty())o.phase else TurnPhase.UNKNOWN,
+            confidence=o.confidence,trackingWarning=when{
+                pending.isNotEmpty()->"Не определён получатель стола"
+                !historyComplete->"Учёт неполный: точная рука не подтверждена"
+                o.deckCount==null->"Счётчик сейчас не читается"
+                !o.tableComplete->"Не все карты стола распознаны"
+                else->""
+            })
+        return state
     }
-
-    private fun format(cards: Set<Card>): String = cards
-        .sortedWith(compareBy({ it.suit.ordinal }, { it.rank.strength }))
-        .joinToString(" ")
-
-    private data class PendingClear(val cards: Set<Card>, var age: Int = 0)
-
-    companion object {
-        private const val TAKE_CONFIRM_FRAMES = 3
-    }
+    private fun format(cards:Set<Card>)=cards.sortedWith(compareBy({it.suit.ordinal},{it.rank.strength})).joinToString(" ")
 }
