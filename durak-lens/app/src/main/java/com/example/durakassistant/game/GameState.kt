@@ -25,6 +25,8 @@ data class GameKnowledge(
     val knownOpponent: Set<Card> = emptySet(),
     val possibleOpponent: Set<Card> = Deck24.cards,
     val discarded: Set<Card> = emptySet(),
+    val opponentTaken: Set<Card> = emptySet(),
+    val lastEvent: String = "Ожидаю начало партии",
     val phase: TurnPhase = TurnPhase.UNKNOWN,
     val confidence: Float = 0f
 )

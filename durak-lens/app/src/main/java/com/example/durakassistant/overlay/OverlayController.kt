@@ -43,7 +43,8 @@ class OverlayController(private val context: Context) {
         }
         details = TextView(context).apply {
             setTextColor(Color.WHITE)
-            textSize = 12.5f
+            textSize = 11f
+            maxLines = 11
             text = "Ожидаю кадр игры"
         }
         panel.addView(title)
@@ -77,18 +78,30 @@ class OverlayController(private val context: Context) {
     fun update(state: GameKnowledge, advice: Advice) {
         if (root == null) show()
         title?.text = advice.title
-        val known = state.knownOpponent.sortedBy { it.rank.strength }.joinToString(" ").ifBlank { "—" }
+        val myCards = cards(state.hand)
+        val tableCards = cards(state.table.flatMap { listOfNotNull(it.attack, it.defense) }.toSet())
+        val discarded = cards(state.discarded)
+        val taken = cards(state.opponentTaken)
+        val known = cards(state.knownOpponent)
         val possible = state.possibleOpponent
             .filterNot { it in state.knownOpponent }
             .sortedWith(compareBy({ it.suit.ordinal }, { it.rank.strength }))
             .joinToString(" ")
-            .let { if (it.length > 72) it.take(69) + "…" else it }
+            .let { shorten(it, 58) }
         details?.text = buildString {
             append(advice.detail)
-            append("\nСоперник: ${state.opponentCount}")
-            append("  Колода: ${state.deckCount}")
-            append("\nИзвестно: $known")
-            append("\nВозможно: ${possible.ifBlank { "—" }}")
+            append("\nМои (${state.hand.size}): $myCards")
+            append("\nСтол: $tableCards")
+            append("\nКолода: ${state.deckCount}  Соперник: ${state.opponentCount}")
+            append("\nБита (${state.discarded.size}): $discarded")
+            append("\nБрал соперник: $taken")
+            if (state.deckCount == 0) {
+                append("\nУ соперника точно: $known")
+            } else {
+                append("\nТочно осталось: $known")
+                append("\nВозможны: ${possible.ifBlank { "—" }}")
+            }
+            append("\n${state.lastEvent}")
             append("\nРаспознано: ${(state.confidence * 100).roundToInt()}%")
         }
     }
@@ -98,6 +111,15 @@ class OverlayController(private val context: Context) {
         root = null
         params = null
     }
+
+    private fun cards(cards: Set<com.example.durakassistant.game.Card>): String = cards
+        .sortedWith(compareBy({ it.suit.ordinal }, { it.rank.strength }))
+        .joinToString(" ")
+        .let { shorten(it, 58) }
+        .ifBlank { "—" }
+
+    private fun shorten(text: String, limit: Int): String =
+        if (text.length > limit) text.take(limit - 1) + "…" else text
 
     private fun makeDraggable(view: View, layout: WindowManager.LayoutParams) {
         var startX = 0

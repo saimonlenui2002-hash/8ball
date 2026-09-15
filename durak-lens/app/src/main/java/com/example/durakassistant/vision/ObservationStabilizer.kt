@@ -12,10 +12,12 @@ import com.example.durakassistant.game.TablePair
 class ObservationStabilizer {
     private val history = ArrayDeque<Observation>()
     private var confirmedDeck: Int? = null
+    private var newDealVotes = 0
 
     fun reset() {
         history.clear()
         confirmedDeck = null
+        newDealVotes = 0
     }
 
     fun offer(observation: Observation): Observation? {
@@ -35,8 +37,16 @@ class ObservationStabilizer {
         val deckMode = handFrames.mapNotNull { it.deckCount }
             .groupingBy { it }.eachCount().maxByOrNull { it.value }
             ?.takeIf { it.value >= 3 }?.key
-        if (deckMode != null && (confirmedDeck == null || deckMode <= confirmedDeck!!)) {
-            confirmedDeck = deckMode
+        if (deckMode == 12 && confirmedDeck != null && confirmedDeck!! <= 2 &&
+            table.isEmpty() && hand.size in 4..8
+        ) {
+            newDealVotes++
+            if (newDealVotes >= NEW_DEAL_VOTES) confirmedDeck = 12
+        } else {
+            newDealVotes = 0
+            if (deckMode != null && (confirmedDeck == null || deckMode <= confirmedDeck!!)) {
+                confirmedDeck = deckMode
+            }
         }
 
         return observation.copy(
@@ -71,5 +81,6 @@ class ObservationStabilizer {
     companion object {
         private const val HAND_WINDOW = 5
         private const val TABLE_WINDOW = 3
+        private const val NEW_DEAL_VOTES = 5
     }
 }
